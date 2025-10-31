@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "last_update": "2025-10-28",
+  "scrapers": [
+    {
+      "name": "einschalten",
+      "enabled": true,
+      "version": "2023-11-24",
+      "description": "Einschalten.tv Scraper",
+      "language": "de"
+    },
+    {
+      "name": "fhdfilme",
+      "enabled": true,
+      "version": "2023-11-24",
+      "description": "FHD Filme Scraper",
+      "language": "de"
+    }
+  ],
+  "sites": [
+    {
+      "name": "fhdfilme",
+      "enabled": true,
+      "version": "2024-10-20",
+      "description": "FHD Filme Site"
+    }
+  ],
+  "update_info": {
+    "check_interval": 24,
+    "force_update": false,
+    "changelog": "Initiale Version mit Remote-Loading Support"
+  }
+}
