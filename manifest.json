@@ -1,33 +1,43 @@
 {
   "version": "1.0.0",
-  "last_update": "2025-10-28",
+  "last_update": "2025-10-31T15:00:00Z",
+  "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
-      "name": "einschalten",
-      "enabled": true,
-      "version": "2023-11-24",
-      "description": "Einschalten.tv Scraper",
-      "language": "de"
-    },
-    {
       "name": "fhdfilme",
+      "version": "1.0",
       "enabled": true,
-      "version": "2023-11-24",
       "description": "FHD Filme Scraper",
-      "language": "de"
+      "last_modified": "2025-10-31"
     }
   ],
   "sites": [
     {
       "name": "fhdfilme",
+      "version": "1.0",
       "enabled": true,
-      "version": "2024-10-20",
-      "description": "FHD Filme Site"
+      "description": "FHD Filme Site Module",
+      "last_modified": "2025-10-31"
     }
   ],
-  "update_info": {
-    "check_interval": 1,
-    "force_update": false,
-    "changelog": "Initiale Version mit Remote-Loading Support"
-  }
+  "repository": {
+    "url": "https://github.com/mr-evil1/lastship-modules",
+    "branch": "main",
+    "raw_base": "https://raw.githubusercontent.com/mr-evil1/lastship-modules/main"
+  },
+  "changelog": [
+    {
+      "date": "2025-10-31",
+      "changes": [
+        "Initial Release",
+        "Added FHD Filme Scraper",
+        "Added FHD Filme Site Module"
+      ]
+    }
+  ],
+  "notes": [
+    "Module werden automatisch gecached",
+    "Cache-Dauer: 24 Stunden (einstellbar)",
+    "Lokale Fallback-Module werden verwendet wenn Remote nicht verfügbar"
+  ]
 }
