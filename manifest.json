@@ -1,57 +1,33 @@
 {
   "version": "1.0.0",
-  "last_update": "2025-10-31T12:00:00Z",
-  "description": "Lastship Reborn Remote Module Repository",
-  
+  "last_update": "2025-10-28",
   "scrapers": [
     {
+      "name": "einschalten",
+      "enabled": true,
+      "version": "2023-11-24",
+      "description": "Einschalten.tv Scraper",
+      "language": "de"
+    },
+    {
       "name": "fhdfilme",
-      "version": "1.2.0",
-      "description": "FHDFilme Scraper für deutsche Streams",
-      "last_update": "2025-10-30",
-      "status": "active",
+      "enabled": true,
+      "version": "2023-11-24",
+      "description": "FHD Filme Scraper",
       "language": "de"
     }
   ],
-  
   "sites": [
     {
       "name": "fhdfilme",
-      "version": "1.2.0",
-      "description": "FHDFilme Site-Plugin für Lastship",
-      "last_update": "2025-10-30",
-      "status": "active",
-      "language": "de",
-      "requires": {
-        "lastship_version": "1.0.0"
-      }
+      "enabled": true,
+      "version": "2024-10-20",
+      "description": "FHD Filme Site"
     }
   ],
-  
-  "metadata": {
-    "repository": "https://github.com/mr-evil1/lastship-modules",
-    "branch": "main",
-    "min_lastship_version": "1.0.0",
-    "max_lastship_version": "2.0.0",
-    "update_frequency": "daily",
-    "maintainer": "mr-evil1",
-    "contact": "https://github.com/mr-evil1/lastship-modules/issues"
-  },
-  
-  "changelog": [
-    {
-      "date": "2025-10-30",
-      "version": "1.0.0",
-      "changes": [
-        "Test2",
-      ]
-    },
-    {
-      "date": "2025-10-25",
-      "version": "0.9.5",
-      "changes": [
-        "Test"
-      ]
-    }
-  ]
+  "update_info": {
+    "check_interval": 1,
+    "force_update": false,
+    "changelog": "Initiale Version mit Remote-Loading Support"
+  }
 }
