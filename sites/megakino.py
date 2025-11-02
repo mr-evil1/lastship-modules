@@ -176,7 +176,6 @@ def getHosters():
                 if isBlocked: continue
             elif isBlockedHoster(sUrl)[0]:
                 continue
-            xbmcgui.Dialog().ok('',sUrl)
             items.append((sHoster, sTitle, meta, isResolve, sUrl, sThumbnail))
         if isProgressDialog:  progressDialog.close()
     url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
