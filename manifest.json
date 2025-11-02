@@ -13,6 +13,27 @@
   ],
   "sites": [
     {
+      "name": "aniworld",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Aniworld Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "dokus",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Dokus Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "einschalten",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Einschalten Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
       "name": "fhdfilme",
       "version": "1.0",
       "enabled": true,
@@ -20,10 +41,80 @@
       "last_modified": "2025-10-31"
     },
     {
+      "name": "filmpalast",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Filmpalast Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "internetarchive",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Archive.org Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "kids_tube",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Youtube Kids Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "kinoger",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Kinoger Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "kinox",
+      "version": "1.0",
+      "enabled": true,
+      "description": "KinoX Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
       "name": "megakino",
       "version": "1.0",
       "enabled": true,
       "description": "Megakino Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "moflix-stream",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Moflix Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "movie2k",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Movie2k Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "serienstream",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Serienstream Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "skiste",
+      "version": "1.0",
+      "enabled": true,
+      "description": "SKiste Site Module",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "streamcloud",
+      "version": "1.0",
+      "enabled": true,
+      "description": "StreamCloud Site Module",
       "last_modified": "2025-11-02"
     }
   
@@ -38,8 +129,8 @@
       "date": "2025-10-31",
       "changes": [
         "Initial Release",
-        "Added FHD Filme Scraper",
-        "Added FHD Filme Site Module"
+        "Added Filme Scraper",
+        "Added Filme Site Module"
       ]
     }
   ],
