@@ -18,7 +18,15 @@
       "enabled": true,
       "description": "FHD Filme Site Module",
       "last_modified": "2025-10-31"
+    },
+    {
+      "name": "megakino",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Megakino Site Module",
+      "last_modified": "2025-11-02"
     }
+  
   ],
   "repository": {
     "url": "https://github.com/mr-evil1/lastship-modules",
