@@ -6,12 +6,166 @@
   
   "scrapers": [
     {
+      "name": "einschalten",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Einschalten Scraper",
+      "last_modified": "2025-11-02"
+    },
+    {
       "name": "fhdfilme",
       "version": "1.0",
       "enabled": true,
       "description": "FHD Filme Scraper",
-      "last_modified": "2025-10-31"
-    }
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "filmpalast",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Filmpalast Scraper",
+      "last_modified": "2025-11-02"
+    },
+    {
+      "name": "filmpro",
+      "version": "1.0",
+      "enabled": true,
+      "description": "FilmPro Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "hdfilme",
+      "version": "1.0",
+      "enabled": true,
+      "description": "HD Filme Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "huhu",
+      "version": "1.0",
+      "enabled": true,
+      "description": "HUHU Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "kinoger",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Kinoger Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "kinokiste",
+      "version": "1.0",
+      "enabled": true,
+      "description": "KinoKiste Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "kinox",
+      "version": "1.0",
+      "enabled": true,
+      "description": "KinoX Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "kkiste",
+      "version": "1.0",
+      "enabled": true,
+      "description": "KKiste Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "megakino",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Megakino Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "moflix",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Moflix Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "movie2k",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Movie2K Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "netzkino",
+      "version": "1.0",
+      "enabled": true,
+      "description": "NetzKino Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "serienstream",
+      "version": "1.0",
+      "enabled": true,
+      "description": "SerienStream Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "streamcloud",
+      "version": "1.0",
+      "enabled": true,
+      "description": "StreamCloud Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "streamen",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Streamen Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "streamkiste",
+      "version": "1.0",
+      "enabled": true,
+      "description": "StreamKiste Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "topstreamfilm",
+      "version": "1.0",
+      "enabled": true,
+      "description": "TopStreamFilm Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "vavoo",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Vavoo Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "vavoo2",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Vavoo2 Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "vavoo3",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Vavoo3 Scraper",
+      "last_modified": "2025-11-02"
+    }, 
+    {
+      "name": "vavoo4",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Vavoo4 Scraper",
+      "last_modified": "2025-11-02"
+    },
   ],
   
   
