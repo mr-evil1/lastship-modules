@@ -57,6 +57,9 @@ class source:
                 for j in jVideos:
                     try:
                         quality = j['quality'] if j['quality'] else 'SD'
+                        
+                        quality = '1080p' if '1080' in quality else '720p'
+                        
                         valid, hoster = source_utils.is_host_valid(j['src'], hostDict)
                         if not valid: continue
                         self.sources.append({'source': hoster, 'quality': quality, 'language': 'de', 'url': j['src'], 'info': j['language'], 'direct': False})
