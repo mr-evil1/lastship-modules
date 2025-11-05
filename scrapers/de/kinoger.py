@@ -4,7 +4,7 @@ from resources.lib.control import quote_plus, unquote_plus, infoDialog, urlparse
 from resources.lib.requestHandler import cRequestHandler
 from resources.lib import pyaes
 from binascii import unhexlify
-from scrapers.modules import dom_parser, source_utils, cleantitle, jsunpacker
+from scrapers.modules import dom_parser, source_utils, cleantitle
 from scrapers.modules.tools import cParser, cUtil
 from resources.lib import log_utils
 import re
@@ -81,28 +81,41 @@ class source:
             quali = re.findall('title="Stream.(.+?)"', sHtmlContent)
             links = re.findall('.show.+?,(\[\[.+?\]\])', sHtmlContent)
             if len(links) == 0: return sources
-            
+
             if season > 0 and episode > 0:
                 season = season - 1
                 episode = episode - 1
 
             for i in range(0, len(links)):
-                
+
                 direct = True
                 pw = ast.literal_eval(links[i])
                 url = (pw[season][episode]).strip()
                 valid, host = source_utils.is_host_valid(url, hostDict)
                 if valid: direct = False
                 quality = quali[i]
-                if quality == '': quality = 'SD'
-                if quality == 'HD': quality = '720p'
-                if quality == 'HD+': quality = '1080p'
+                if quality == '':
+                    quality = 'SD'
+                elif quality == 'HD':
+                    quality = '720p'
+                elif quality == 'HD+':
+                    quality = '1080p'
+                elif '2160' in quality or '4K' in quality:
+                    quality = '4K'
+                elif '1440' in quality or '2K' in quality:
+                    quality = '1440p'
+                elif '480' in quality:
+                    quality = '480p'
+                elif '360' in quality:
+                    quality = '360p'
                 items.append({'source': host, 'quality': quality, 'url': url, 'direct': direct})
 
             headers = '&Accept-Language=de%2Cen-US%3Bq%3D0.7%2Cen%3Bq%3D0.3&Accept=%2A%2F%2A&User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%3B+rv%3A99.0%29+Gecko%2F20100101+Firefox%2F99.0'
             for item in items:
                 try:
                     if 'kinoger.re' in item['source']:continue
+                    elif 'p2p' in item['source'] or 'P2P' in item['source']:continue
+
                     elif 'kinoger.be' in item['source']:
                         sUrl=item['url']
                         oRequest = cRequestHandler(sUrl, caching=False, ignoreErrors=True)
