@@ -56,10 +56,21 @@ class source:
                     jVideos = jSearch['episode']['videos']
                 for j in jVideos:
                     try:
-                        quality = j['quality'] if j['quality'] else 'SD'
-                        
-                        quality = '1080p' if '1080' in quality else '720p'
-                        
+                        quality_raw = j['quality'] if j['quality'] else 'SD'
+                        if '2160' in quality_raw or '4K' in quality_raw.upper():
+                            quality = '4K'
+                        elif '1440' in quality_raw or '2K' in quality_raw.upper():
+                            quality = '1440p'
+                        elif '1080' in quality_raw:
+                            quality = '1080p'
+                        elif '720' in quality_raw:
+                            quality = '720p'
+                        elif '480' in quality_raw:
+                            quality = '480p'
+                        elif '360' in quality_raw:
+                            quality = '360p'
+                        else:
+                            quality = 'SD'
                         valid, hoster = source_utils.is_host_valid(j['src'], hostDict)
                         if not valid: continue
                         self.sources.append({'source': hoster, 'quality': quality, 'language': 'de', 'url': j['src'], 'info': j['language'], 'direct': False})

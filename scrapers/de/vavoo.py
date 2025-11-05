@@ -237,12 +237,12 @@ def is_blocked_hoster(url):
 def parse_quality(tag, stream_url):
     if not tag:
         tag = ""
-    
     tag_lower = tag.lower()
     url_lower = stream_url.lower()
-    
     if '4k' in tag_lower or '2160' in tag_lower or '4k' in url_lower:
         return '4K'
+    elif '1440' in tag_lower or '2k' in tag_lower or '1440' in url_lower:
+        return '1440p'
     elif '1080' in tag_lower or '1080' in url_lower:
         return '1080p'
     elif '720' in tag_lower or '720' in url_lower:
@@ -251,8 +251,7 @@ def parse_quality(tag, stream_url):
         return '480p'
     elif '360' in tag_lower or '360' in url_lower:
         return '360p'
-    
-    return '720p'
+    return 'SD'
 
 class source:
     def __init__(self):

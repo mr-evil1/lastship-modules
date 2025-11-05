@@ -12,7 +12,7 @@ SITE_NAME = SITE_IDENTIFIER.upper()
 
 class source:
     def __init__(self):
-        
+
         self.priority = 1
         self.language = ['de']
         self.domain = getSetting('provider.' + SITE_IDENTIFIER + '.domain', SITE_DOMAIN)
@@ -21,6 +21,21 @@ class source:
         self.checkHoster = False if getSetting('provider.streamen.checkHoster') == 'false' else True
         self.sources = []
 
+    def parse_quality(self, url):
+        url_lower = url.lower()
+        if '2160' in url_lower or '4k' in url_lower:
+            return '4K'
+        elif '1440' in url_lower or '2k' in url_lower:
+            return '1440p'
+        elif '1080' in url_lower:
+            return '1080p'
+        elif '720' in url_lower:
+            return '720p'
+        elif '480' in url_lower:
+            return '480p'
+        elif '360' in url_lower:
+            return '360p'
+        return 'HD'
     def run(self, titles, year, season=0, episode=0, imdb='', hostDict=None):
         try:
             if season == 0:
@@ -31,7 +46,8 @@ class source:
                     if sUrl.startswith('/'): sUrl = 'https:' + sUrl
                     valid, hoster = source_utils.is_host_valid(sUrl, hostDict)
                     if not valid: continue
-                    self.sources.append({'source': hoster, 'quality': '720p', 'language': 'de', 'url': sUrl, 'direct': False})
+                    quality = self.parse_quality(sUrl)
+                    self.sources.append({'source': hoster, 'quality': quality, 'language': 'de', 'url': sUrl, 'direct': False})
 
             else:
                 oRequest = cRequestHandler(self.search_link % imdb, caching=True)
@@ -52,7 +68,8 @@ class source:
                     if sUrl.startswith('/'): sUrl = 'https:' + sUrl
                     valid, hoster = source_utils.is_host_valid(sUrl, hostDict)
                     if not valid: continue
-                    self.sources.append({'source': hoster, 'quality': '720p', 'language': 'de', 'url': sUrl, 'direct': False})
+                    quality = self.parse_quality(sUrl)
+                    self.sources.append({'source': hoster, 'quality': quality, 'language': 'de', 'url': sUrl, 'direct': False})
             return self.sources
         except:
             return self.sources

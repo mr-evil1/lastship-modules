@@ -62,9 +62,20 @@ class source:
                     streamUrl = jResult.get('streamUrl')
                     if not streamUrl:
                         continue
-                    if '720p' in releaseName: quality = '720p'
-                    elif '1080p' in releaseName: quality = '1080p'
-                    else: quality = 'SD'
+                    if '2160' in releaseName or '4K' in releaseName:
+                        quality = '4K'
+                    elif '1440' in releaseName or '2K' in releaseName:
+                        quality = '1440p'
+                    elif '1080' in releaseName:
+                        quality = '1080p'
+                    elif '720' in releaseName:
+                        quality = '720p'
+                    elif '480' in releaseName:
+                        quality = '480p'
+                    elif '360' in releaseName:
+                        quality = '360p'
+                    else:
+                        quality = 'SD'
                     isBlocked, hoster, url, prioHoster = isBlockedHoster(streamUrl)
                     if isBlocked:
                         continue

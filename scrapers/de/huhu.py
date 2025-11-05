@@ -65,25 +65,26 @@ def make_request(url):
 def parse_quality(name):
     if not name:
         return 'SD'
-    
     if '(' in name and 'p)' in name:
         try:
             quality_str = name.split('(')[1].split('p)')[0].strip()
             return quality_str + 'p'
         except:
             pass
-    
     name_lower = name.lower()
     if '2160' in name_lower or '4k' in name_lower:
         return '4K'
+    elif '1440' in name_lower or '2k' in name_lower:
+        return '1440p'
     elif '1080' in name_lower:
         return '1080p'
     elif '720' in name_lower:
         return '720p'
     elif '480' in name_lower:
         return '480p'
-    
-    return '720p'
+    elif '360' in name_lower:
+        return '360p'
+    return 'SD'
 
 def parse_hoster(name):
     name = name.split('(')[0].strip()

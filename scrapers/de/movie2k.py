@@ -33,8 +33,21 @@ class source:
             log_utils.log(str(loop, xbmc.LOGINFO)+' '+ sUrl)
             if loop == 20:
                 break
-            quality = 'HD'
-            if jSearch[i].get('release', False) and '1080p' in jSearch[i].get('release'): quality = '1080p'
+            release = jSearch[i].get('release', '')
+            if '2160' in release or '4K' in release:
+                quality = '4K'
+            elif '1440' in release or '2K' in release:
+                quality = '1440p'
+            elif '1080' in release:
+                quality = '1080p'
+            elif '720' in release:
+                quality = '720p'
+            elif '480' in release:
+                quality = '480p'
+            elif '360' in release:
+                quality = '360p'
+            else:
+                quality = 'HD'
             isBlocked, hoster, url, prioHoster = isBlockedHoster(sUrl)
             if isBlocked: continue
             if url:

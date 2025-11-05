@@ -231,12 +231,16 @@ class source:
         info = str(info).lower()
         if '2160' in info or '4k' in info:
             return '4K'
+        elif '1440' in info or '2k' in info:
+            return '1440p'
         elif '1080' in info:
             return '1080p'
         elif '720' in info:
             return '720p'
         elif '480' in info:
             return '480p'
+        elif '360' in info:
+            return '360p'
         return 'SD'
     
     def run(self, titles, year, season=0, episode=0, imdb='', hostDict=None):
