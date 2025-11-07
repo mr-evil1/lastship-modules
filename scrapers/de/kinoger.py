@@ -30,9 +30,10 @@ def extract_media_id_from_kinoger(kinoger_url):
         html = response.text
         
         patterns = [
-            r'https?://[^/]+/e/([a-zA-Z0-9]{8,12}),
+            r'https?://[^/]+/e/([a-zA-Z0-9]{8,12})',
             r'voe\.sx/e/([a-zA-Z0-9]{8,12})',
-            r'/([a-zA-Z0-9]{8,12})["\']']
+            r'/([a-zA-Z0-9]{8,12})["\']'
+        ]
         for pattern in patterns:
             matches = re.findall(pattern, html, re.IGNORECASE)
             for media_id in matches:
@@ -50,8 +51,9 @@ def get_voe_stream_from_kinoger(kinoger_url):
     }
     try:
         media_id=extract_media_id_from_kinoger(kinoger_url)
-        resolver = voesx.VoeResolver()
-        stream_url = resolver.get_media_url('voe.sx', media_id)
+        if media_id:
+            resolver = voesx.VoeResolver()
+            stream_url = resolver.get_media_url('voe.sx', media_id)
             return stream_url
         return None
         
