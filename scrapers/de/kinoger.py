@@ -145,7 +145,7 @@ class source:
             for item in items:
                 try:
                     if 'kinoger.re' in item['source']:continue
-                if 'p2p' in item['source'] or 'P2P' in item['source']:continue
+                    elif 'p2p' in item['source'] or 'P2P' in item['source']:continue
                     elif 'kinoger.ru' in item['source']:
                         sUrl=item['url']
                         
