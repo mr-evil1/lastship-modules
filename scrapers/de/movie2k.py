@@ -8,7 +8,7 @@ from scrapers.modules.tools import cParser
 SITE_IDENTIFIER = 'movie2k'
 import xbmc
 import sys, os; sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..")); from resources.lib import log_utils
-SITE_DOMAIN = 'www2.movie2k.ch' 
+SITE_DOMAIN = 'movie2k.ch' 
 SITE_NAME = SITE_IDENTIFIER.upper()
 
 class source:
