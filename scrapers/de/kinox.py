@@ -9,7 +9,7 @@ from resources.lib.requestHandler import cRequestHandler
 from resources.lib.control import urlparse, quote_plus, urljoin, parse_qs, getSetting, setSetting
 from scrapers.modules import cleantitle, dom_parser, source_utils
 SITE_IDENTIFIER = 'kinox'
-SITE_DOMAIN = 'kinoz.fan'
+SITE_DOMAIN = 'www12.kinoz.to'
 SITE_NAME = SITE_IDENTIFIER.upper()
 class source:
     def __init__(self):
