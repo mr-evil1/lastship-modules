@@ -42,7 +42,7 @@ URL_LANGUAGE = URL_MAIN + '/aSET/PageLang/1'
 def load():
     
     logger.info('Load %s' % SITE_NAME)
-    addDirectoryItem("Neu", 'runPlugin&site=%s&function=showNews&sUrl=%s&page=%s&mediaType=%s' % (SITE_NAME, URL_NEWS, 1, 'news'), SITE_ICON, 'DefaultMovies.png')
+    #addDirectoryItem("Neu", 'runPlugin&site=%s&function=showNews&sUrl=%s&page=%s&mediaType=%s' % (SITE_NAME, URL_NEWS, 1, 'news'), SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem("Filme", 'runPlugin&site=%s&function=showMovieMenu&sUrl=%s&mediaType=%s' % (SITE_NAME, URL_MOVIE_PAGE, 'movie'), SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem("Serien", 'runPlugin&site=%s&function=showSeriesMenu&sUrl=%s&mediaType=%s&page=1' % (SITE_NAME, URL_SERIE_PAGE, 'series'), SITE_ICON, 'DefaultTVShows.png')
     addDirectoryItem("Dokus", 'runPlugin&site=%s&function=showDocuMenu&sUrl=%s&mediaType=%s&page=1' % (SITE_NAME, URL_DOCU_PAGE, 'documentation'), SITE_ICON, 'DefaultTVShows.png')
