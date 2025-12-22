@@ -9,7 +9,7 @@ from resources.lib.requestHandler import cRequestHandler
 from resources.lib.control import urlparse, quote_plus, urljoin, parse_qs, getSetting, setSetting
 from scrapers.modules import cleantitle, dom_parser, source_utils
 SITE_IDENTIFIER = 'kinox'
-SITE_DOMAIN = 'kinoz.to'
+SITE_DOMAIN = 'kinoz.fan'
 SITE_NAME = SITE_IDENTIFIER.upper()
 class source:
     def __init__(self):
@@ -24,7 +24,7 @@ class source:
 
     def getdomain(self, check=False):
         if getSetting('kinox.base_link') and check == False: return [getSetting('provider.kinox.domain')], getSetting('kinox.base_link')
-        domains = ['kinox.PUB', 'kinox.FUN', 'kinox.CLICK', 'kinox.AM', 'kinoS.TO', 'kinox.DIGITAL', 'KinoX.to', 'kinos.to', 'kinox.EXPRESS',
+        domains = ['kinox.PUB', 'kinox.fan','kinox.FUN', 'kinox.CLICK', 'kinox.AM', 'kinoS.TO', 'kinox.DIGITAL', 'KinoX.to', 'kinos.to', 'kinox.EXPRESS',
                    'kinox.SG', 'kinox.sh', 'kinox.GRATIS', 'kinox.WTF', 'kinox.tv', 'kinox.BZ', 'kinox.MOBI', 'kinox.TV', 'kinox.to', 'www12.kinos.to',
                    'kinox.LOL', 'kinox.FYI', 'kinox.CLOUD', 'kinox.DIRECT', 'kinox.SH', 'kinox.CLUB', 'kinoz.TO', 'ww8.kinox.to']
         for i in range(18, 22):
