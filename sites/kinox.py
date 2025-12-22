@@ -18,7 +18,7 @@ SITE_IDENTIFIER = 'kinox'
 SITE_NAME = 'KinoX'
 SITE_ICON = 'kinox.png'
 
-DOMAIN = getSetting('plugin_' + SITE_IDENTIFIER + '.domain', 'kinox.fan')
+DOMAIN = getSetting('plugin_' + SITE_IDENTIFIER + '.domain', 'www12.kinoz.to')
 URL_MAIN = 'https://' + DOMAIN
 URL_NEWS = URL_MAIN + '/index.php'
 URL_CINEMA_PAGE = URL_MAIN + '/Kino-Filme.html'
