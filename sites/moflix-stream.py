@@ -301,19 +301,18 @@ def getHosters(bGlobal=False):
             sName = 'VidGuard'
         #sName = sName.split('.')[0].strip()
         streamUrl=sUrl
-        
         infoTitle=cParser.urlparse(sUrl)
-
         sHoster=cParser.urlparse(streamUrl)
         t += 100 / len(aResults)
         if isProgressDialog: progressDialog.update(int(t), '[CR]Überprüfe Stream von ' + sHoster)
-                
         Request = cRequestHandler(streamUrl, caching=False)
         Request.request()
         sUrl = Request.getRealUrl()
+        if sUrl:
+            streamUrl=str(sUrl)
         if 'outube' in sHoster:
             sHoster=sHoster.split('.')[0]+' Trailer'
-        items.append((sName, infoTitle, meta, False, sUrl, sThumbnail))
+        items.append((sName, infoTitle, meta, False, streamUrl, sThumbnail))
     if isProgressDialog:  progressDialog.close()
     url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
     execute('Container.Update(%s)' % url)
