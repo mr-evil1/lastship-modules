@@ -23,16 +23,16 @@ class source:
     def run(self, titles, year, season=0, episode=0, imdb=''):
         jSearch = self.search(titles, year, season, episode)
         if jSearch == [] or jSearch == 0: return
-        jSearch = sorted(jSearch, key=lambda k: k['added'], reverse=True)
+        jSearch = sorted(jSearch, key=lambda k: k.get('added', ''), reverse=True)
         total = 0
         loop = 0
-        for i in range(len(jSearch) -1, -1, -1):
+        for i in range(len(jSearch)):
             sUrl = jSearch[i]['stream']
-            if 'streamtape' in sUrl: continue
+            #if 'streamtape' in sUrl: continue
             loop += 1
-            log_utils.log(str(loop, xbmc.LOGINFO)+' '+ sUrl)
-            if loop == 20:
+            if loop == 50:
                 break
+
             release = jSearch[i].get('release', '')
             if '2160' in release or '4K' in release:
                 quality = '4K'
@@ -48,13 +48,13 @@ class source:
                 quality = '360p'
             else:
                 quality = 'HD'
+
             isBlocked, hoster, url, prioHoster = isBlockedHoster(sUrl)
             if isBlocked: continue
             if url:
                 self.sources.append({'source': hoster, 'quality': quality, 'language': 'de', 'url': url, 'direct': True, 'prioHoster': prioHoster})
                 total += 1
-                if total == 3: break
-
+                if total == 10: break
         return self.sources
 
     def resolve(self, url):
