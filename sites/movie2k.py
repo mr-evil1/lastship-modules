@@ -18,7 +18,7 @@ SITE_IDENTIFIER = 'movie2k'
 SITE_NAME = 'Movie2K'
 SITE_ICON = 'movie2k.png'
 
-DOMAIN = getSetting('plugin_' + SITE_IDENTIFIER + '.domain', 'www2.movie2k.ch')
+DOMAIN = getSetting('plugin_' + SITE_IDENTIFIER + '.domain', 'movie2k.ch')
 STATUS = getSetting('plugin_' + SITE_IDENTIFIER + '_status')
 ACTIVE = getSetting('plugin_' + SITE_IDENTIFIER)
 
