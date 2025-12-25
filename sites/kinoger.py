@@ -523,6 +523,7 @@ def getHosters():
             t += 100 / len(hosters)
             if isProgressDialog: progressDialog.update(int(t), '[CR]Überprüfe Stream von ' + sHoster)
             if 'ayer' in sHoster: continue
+            if 'p2p' in sHoster or 'P2P' in sHoster : continue
             
             if 'outube' in sHoster:
                 sHoster=sHoster.split('.')[0]+' Trailer'
