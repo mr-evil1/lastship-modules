@@ -1,42 +1,60 @@
-name: Update Manifest Timestamp
+name: Sync Manifest with Files
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'scrapers/**'  # Trigger nur, wenn sich tatsächlicher Inhalt ändert
+      - 'scrapers/de/**'
       - 'sites/**'
-      - 'manifest.json'
 
 jobs:
-  update-timestamp:
+  sync-manifest:
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Update dates in manifest.json
+      - name: Rebuild Scrapers and Sites in Manifest
         run: |
-          # Aktuelle Daten generieren
+          # Aktuelle Zeitstempel
           ISO_NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           DAY_NOW=$(date -u +"%Y-%m-%d")
 
-          # manifest.json mit jq bearbeiten
-          jq --arg iso "$ISO_NOW" --arg day "$DAY_NOW" \
-            '.last_update = $iso | 
-             (.scrapers[].last_modified) = $day | 
-             (.sites[].last_modified) = $day' \
+          # 1. Scrapers (aus scrapers/de/*.py)
+          SCRAPERS_JSON=$(find scrapers/de -name "*.py" -not -name "__init__.py" -printf "%f\n" | sort | jq -R -s -c '
+            split("\n") | map(select(length > 0)) | map({
+              name: . | sub(".py$"; ""),
+              version: "1.0",
+              enabled: true,
+              description: (. | sub(".py$"; "") | (.[0:1] | ascii_upcase) + .[1:] + " Scraper"),
+              last_modified: "'$DAY_NOW'"
+            })')
+
+          # 2. Sites (aus sites/*.py)
+          SITES_JSON=$(find sites -name "*.py" -not -name "__init__.py" -printf "%f\n" | sort | jq -R -s -c '
+            split("\n") | map(select(length > 0)) | map({
+              name: . | sub(".py$"; ""),
+              version: "1.0",
+              enabled: true,
+              description: (. | sub(".py$"; "") | (.[0:1] | ascii_upcase) + .[1:] + " Site Module"),
+              last_modified: "'$DAY_NOW'"
+            })')
+
+          # 3. manifest.json aktualisieren
+          jq --arg iso "$ISO_NOW" \
+             --argjson scrapers "$SCRAPERS_JSON" \
+             --argjson sites "$SITES_JSON" \
+             '.last_update = $iso | .scrapers = $scrapers | .sites = $sites' \
              manifest.json > temp.json && mv temp.json manifest.json
 
-      - name: Commit & Push
+      - name: Commit and Push
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git add manifest.json
-          # Verhindert Fehler, falls keine Änderungen vorhanden sind
-          git commit -m "docs: update manifest timestamps [skip ci]" || exit 0
+          git commit -m "Auto-sync manifest: updated modules from scrapers/de and sites [skip ci]" || exit 0
           git push
