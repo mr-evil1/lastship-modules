@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-01-03T19:31:23Z",
+  "last_update": "2026-01-03T19:38:56Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -14,7 +14,7 @@
       "name": "fhdfilme",
       "version": "1.0",
       "enabled": true,
-      "description": "FHD Filme Scraper",
+      "description": "Fhdfilme Scraper",
       "last_modified": "2026-01-03"
     },
     {
@@ -28,21 +28,21 @@
       "name": "filmpro",
       "version": "1.0",
       "enabled": true,
-      "description": "FilmPro Scraper",
+      "description": "Filmpro Scraper",
       "last_modified": "2026-01-03"
     },
     {
       "name": "hdfilme",
       "version": "1.0",
       "enabled": true,
-      "description": "HD Filme Scraper",
+      "description": "Hdfilme Scraper",
       "last_modified": "2026-01-03"
     },
     {
       "name": "huhu",
       "version": "1.0",
       "enabled": true,
-      "description": "HUHU Scraper",
+      "description": "Huhu Scraper",
       "last_modified": "2026-01-03"
     },
     {
@@ -56,21 +56,21 @@
       "name": "kinokiste",
       "version": "1.0",
       "enabled": true,
-      "description": "KinoKiste Scraper",
+      "description": "Kinokiste Scraper",
       "last_modified": "2026-01-03"
     },
     {
       "name": "kinox",
       "version": "1.0",
       "enabled": true,
-      "description": "KinoX Scraper",
+      "description": "Kinox Scraper",
       "last_modified": "2026-01-03"
     },
     {
       "name": "kkiste",
       "version": "1.0",
       "enabled": true,
-      "description": "KKiste Scraper",
+      "description": "Kkiste Scraper",
       "last_modified": "2026-01-03"
     },
     {
@@ -91,28 +91,35 @@
       "name": "movie2k",
       "version": "1.0",
       "enabled": true,
-      "description": "Movie2K Scraper",
+      "description": "Movie2k Scraper",
       "last_modified": "2026-01-03"
     },
     {
       "name": "netzkino",
       "version": "1.0",
       "enabled": true,
-      "description": "NetzKino Scraper",
+      "description": "Netzkino Scraper",
+      "last_modified": "2026-01-03"
+    },
+    {
+      "name": "primekiste",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Primekiste Scraper",
       "last_modified": "2026-01-03"
     },
     {
       "name": "serienstream",
       "version": "1.0",
       "enabled": true,
-      "description": "SerienStream Scraper",
+      "description": "Serienstream Scraper",
       "last_modified": "2026-01-03"
     },
     {
       "name": "streamcloud",
       "version": "1.0",
       "enabled": true,
-      "description": "StreamCloud Scraper",
+      "description": "Streamcloud Scraper",
       "last_modified": "2026-01-03"
     },
     {
@@ -126,14 +133,14 @@
       "name": "streamkiste",
       "version": "1.0",
       "enabled": true,
-      "description": "StreamKiste Scraper",
+      "description": "Streamkiste Scraper",
       "last_modified": "2026-01-03"
     },
     {
       "name": "topstreamfilm",
       "version": "1.0",
       "enabled": true,
-      "description": "TopStreamFilm Scraper",
+      "description": "Topstreamfilm Scraper",
       "last_modified": "2026-01-03"
     },
     {
@@ -191,7 +198,7 @@
       "name": "fhdfilme",
       "version": "1.0",
       "enabled": true,
-      "description": "FHD Filme Site Module",
+      "description": "Fhdfilme Site Module",
       "last_modified": "2026-01-03"
     },
     {
@@ -205,14 +212,14 @@
       "name": "internetarchive",
       "version": "1.0",
       "enabled": true,
-      "description": "Archive.org Site Module",
+      "description": "Internetarchive Site Module",
       "last_modified": "2026-01-03"
     },
     {
       "name": "kids_tube",
       "version": "1.0",
       "enabled": true,
-      "description": "Youtube Kids Site Module",
+      "description": "Kids_tube Site Module",
       "last_modified": "2026-01-03"
     },
     {
@@ -226,7 +233,7 @@
       "name": "kinox",
       "version": "1.0",
       "enabled": true,
-      "description": "KinoX Site Module",
+      "description": "Kinox Site Module",
       "last_modified": "2026-01-03"
     },
     {
@@ -240,7 +247,7 @@
       "name": "moflix-stream",
       "version": "1.0",
       "enabled": true,
-      "description": "Moflix Site Module",
+      "description": "Moflix-stream Site Module",
       "last_modified": "2026-01-03"
     },
     {
@@ -248,6 +255,13 @@
       "version": "1.0",
       "enabled": true,
       "description": "Movie2k Site Module",
+      "last_modified": "2026-01-03"
+    },
+    {
+      "name": "primekiste",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Primekiste Site Module",
       "last_modified": "2026-01-03"
     },
     {
@@ -261,14 +275,28 @@
       "name": "skiste",
       "version": "1.0",
       "enabled": true,
-      "description": "SKiste Site Module",
+      "description": "Skiste Site Module",
       "last_modified": "2026-01-03"
     },
     {
       "name": "streamcloud",
       "version": "1.0",
       "enabled": true,
-      "description": "StreamCloud Site Module",
+      "description": "Streamcloud Site Module",
+      "last_modified": "2026-01-03"
+    },
+    {
+      "name": "streamkiste",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Streamkiste Site Module",
+      "last_modified": "2026-01-03"
+    },
+    {
+      "name": "topstreamfilm",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Topstreamfilm Site Module",
       "last_modified": "2026-01-03"
     }
   ],
