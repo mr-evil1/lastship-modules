@@ -1,0 +1,42 @@
+name: Update Manifest Timestamp
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'scrapers/**'  # Trigger nur, wenn sich tatsächlicher Inhalt ändert
+      - 'sites/**'
+      - 'manifest.json'
+
+jobs:
+  update-timestamp:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update dates in manifest.json
+        run: |
+          # Aktuelle Daten generieren
+          ISO_NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          DAY_NOW=$(date -u +"%Y-%m-%d")
+
+          # manifest.json mit jq bearbeiten
+          jq --arg iso "$ISO_NOW" --arg day "$DAY_NOW" \
+            '.last_update = $iso | 
+             (.scrapers[].last_modified) = $day | 
+             (.sites[].last_modified) = $day' \
+             manifest.json > temp.json && mv temp.json manifest.json
+
+      - name: Commit & Push
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add manifest.json
+          # Verhindert Fehler, falls keine Änderungen vorhanden sind
+          git commit -m "docs: update manifest timestamps [skip ci]" || exit 0
+          git push
