@@ -23,4 +23,5 @@ from itertools import zip_longest as ziplist
 SITE_IDENTIFIER = 'primekiste'
 SITE_NAME = 'Primekiste'
 SITE_ICON = 'primekiste.png'
+
 DOMAIN = getSetting('plugin_'+ SITE_IDENTIFIER +'.domain', 'primekiste.com')
