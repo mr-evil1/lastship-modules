@@ -13,7 +13,7 @@ setEndOfDirectory = oNavigator._endDirectory
 xsDirectory = oNavigator.xsDirectory
 params = ParameterHandler()
 
-SITE_IDENTIFIER = 'moflix-stream'
+SITE_IDENTIFIER = 'moflix'
 SITE_NAME = 'Moflix-Stream'
 SITE_ICON = 'moflix-stream.png'
 
