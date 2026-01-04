@@ -12,5 +12,5 @@ setEndOfDirectory = oNavigator._endDirectory
 xsDirectory = oNavigator.xsDirectory
 params = ParameterHandler()
 SITE_IDENTIFIER = 'vavoo2'
-SITE_NAME = 'Vavoo'
+SITE_NAME = 'Vavoo2'
 SITE_ICON = 'vavoo2.png'
