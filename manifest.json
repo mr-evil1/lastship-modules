@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-01-04T10:30:51Z",
+  "last_update": "2026-01-04T10:33:25Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -220,6 +220,13 @@
       "version": "1.0",
       "enabled": true,
       "description": "Hdfilme Site Module",
+      "last_modified": "2026-01-04"
+    },
+    {
+      "name": "huhu",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Huhu Site Module",
       "last_modified": "2026-01-04"
     },
     {
