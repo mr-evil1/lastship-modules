@@ -13,7 +13,7 @@ except ImportError:
     xbmc = None
 
 from scrapers.modules import source_utils
-
+SITE_IDENTIFIER = 'huhu'
 DOMAIN = 'www.huhu.to'
 URL_MAIN = f'https://{DOMAIN}/web-vod/'
 URL_LINKS = URL_MAIN + 'api/links?id=%s'
