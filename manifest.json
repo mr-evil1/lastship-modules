@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-01-04T09:49:28Z",
+  "last_update": "2026-01-04T09:49:53Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -360,6 +360,13 @@
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo3 Site Module",
+      "last_modified": "2026-01-04"
+    },
+    {
+      "name": "vavoo4",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Vavoo4 Site Module",
       "last_modified": "2026-01-04"
     }
   ],
