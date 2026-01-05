@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-01-05T07:02:17Z",
+  "last_update": "2026-01-05T07:03:09Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -92,6 +92,13 @@
       "version": "1.0",
       "enabled": true,
       "description": "Movie2k Scraper",
+      "last_modified": "2026-01-05"
+    },
+    {
+      "name": "movie2k2",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Movie2k2 Scraper",
       "last_modified": "2026-01-05"
     },
     {
