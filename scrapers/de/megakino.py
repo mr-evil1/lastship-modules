@@ -5,7 +5,7 @@ from resources.lib.requestHandler import cRequestHandler
 from scrapers.modules import cleantitle, dom_parser, source_utils
 from resources.lib.control import getSetting
 SITE_IDENTIFIER = 'megakino'
-SITE_DOMAIN = 'megakino.one'
+SITE_DOMAIN = 'megakino1.to'
 SITE_NAME = SITE_IDENTIFIER.upper()
 class source:
     def __init__(self):
