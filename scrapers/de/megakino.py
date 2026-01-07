@@ -4,8 +4,18 @@ from scrapers.modules.tools import cParser
 from resources.lib.requestHandler import cRequestHandler
 from scrapers.modules import cleantitle, dom_parser, source_utils
 from resources.lib.control import getSetting
+def get_url():
+    url = "https://raw.githubusercontent.com/mr-evil1/megakino/main/megakino-url.json"
+    try:
+        current_domain = requests.get(url).json().get("url")
+        return current_domain
+    except Exception:
+        return None
+
+
+
 SITE_IDENTIFIER = 'megakino'
-SITE_DOMAIN = 'megakino1.to'
+SITE_DOMAIN = get_url()
 SITE_NAME = SITE_IDENTIFIER.upper()
 class source:
     def __init__(self):
