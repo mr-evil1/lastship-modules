@@ -14,10 +14,18 @@ setEndOfDirectory = oNavigator._endDirectory
 xsDirectory = oNavigator.xsDirectory
 params = ParameterHandler()
 
+def get_url():
+    url = "https://raw.githubusercontent.com/mr-evil1/megakino/main/megakino-url.json"
+    try:
+        current_domain = requests.get(url).json().get("url")
+        return current_domain
+    except Exception:
+        return None
+SITE_DOMAIN = get_url()
 SITE_IDENTIFIER = 'megakino'
 SITE_NAME = 'Megakino'
 SITE_ICON = 'megakino.png'
-DOMAIN = getSetting('provider.'+ SITE_IDENTIFIER +'.domain', 'megakino1.to')
+DOMAIN = getSetting('provider.'+ SITE_IDENTIFIER +'.domain', SITE_DOMAIN)
 URL_MAIN = 'https://' + DOMAIN #+ '/'
 URL_KINO = URL_MAIN + '/kinofilme/'
 URL_MOVIES = URL_MAIN + '/films/'
