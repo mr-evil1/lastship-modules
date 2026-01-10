@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-01-10T07:36:52Z",
+  "last_update": "2026-01-10T07:37:25Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -176,6 +176,13 @@
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo4 Scraper",
+      "last_modified": "2026-01-10"
+    },
+    {
+      "name": "vixstream",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Vixstream Scraper",
       "last_modified": "2026-01-10"
     }
   ],
