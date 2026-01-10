@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-
-# 2024-10-20
-
 import json, sys,xbmcgui,re
 from resources.lib.ParameterHandler import ParameterHandler
 from resources.lib.requestHandler import cRequestHandler
@@ -19,7 +16,7 @@ SITE_IDENTIFIER = 'hdfilme'
 SITE_NAME = 'HD Filme'
 SITE_ICON = 'hdfilme.png'
 
-DOMAIN = getSetting('plugin_'+ SITE_IDENTIFIER +'.domain', 'hdfilme.my')
+DOMAIN = getSetting('plugin_'+ SITE_IDENTIFIER +'.domain', 'hdfilme.garden')
 URL_MAIN = 'https://' + DOMAIN
 # URL_MAIN = 'https://hdfilme.my'
 
