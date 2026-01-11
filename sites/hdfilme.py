@@ -30,7 +30,7 @@ URL_KINO = URL_MAIN + 'aktuelle-kinofilme-im-kino/'
 URL_SERIES = URL_MAIN + 'serienstream-deutsch/'
 URL_SEARCH = URL_MAIN + 'index.php?do=search&subaction=search&story=%s'
 
-def load1():
+def load():
     oNavigator.addDirectoryItem("Neu", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_NEW), SITE_ICON, 'DefaultMovies.png')
     oNavigator.addDirectoryItem("Kino", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_KINO), SITE_ICON, 'DefaultMovies.png')
     oNavigator.addDirectoryItem("Serien", 'runPlugin&site=%s&function=showEntries&isTvshow=True&sUrl=%s' % (SITE_NAME, URL_SERIES), SITE_ICON, 'DefaultTVShows.png')
