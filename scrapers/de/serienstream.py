@@ -7,7 +7,6 @@ from scrapers.modules import cleantitle, dom_parser
 from resources.lib.utils import isBlockedHoster
 from resources.lib.tools import logger, cParser
 
-
 SITE_IDENTIFIER = 'serienstream'
 SITE_DOMAIN = 's.to'
 SITE_NAME = 'SerienStream'
@@ -15,7 +14,7 @@ log_utils=True
 
 class source:
     def __init__(self):
-        self.priority = 2
+        self.priority = 1
         self.language = ['de']
         self.domain = getSetting('provider.' + SITE_IDENTIFIER + '.domain', SITE_DOMAIN)
         
@@ -40,19 +39,14 @@ class source:
             if log_utils:
                 logger.info('SerienStream - Search: S%02dE%02d' % (season, episode))
             
-
             aLinks = []
             for title in titles:
                 if not title:
                     continue
                 
                 try:
-                    try:
-                        from urllib import quote_plus
-                    except:
-                        from urllib.parse import quote_plus
-                    
-                    search_term = quote_plus(title.encode('utf-8') if isinstance(title, str) else title)
+                    from urllib.parse import quote
+                    search_term = quote(title, safe='')
                     search_url = urljoin(self.base_link, self.search_link + search_term)
                     
                     oRequest = cRequestHandler(search_url)
@@ -64,14 +58,11 @@ class source:
                     if links:
                         for href, series_title in links:
                             for clean_title in t:
-                                try:
-                                    if clean_title in cleantitle.get(series_title):
-                                        aLinks.append({'source': href})
-                                        if log_utils:
-                                            logger.info('SerienStream - Found: %s' % href)
-                                        break
-                                except:
-                                    pass
+                                if clean_title in cleantitle.get(series_title):
+                                    aLinks.append({'source': href})
+                                    if log_utils:
+                                        logger.info('SerienStream - Found: %s' % href)
+                                    break
                             if aLinks:
                                 break
                     
@@ -155,7 +146,6 @@ class source:
             if len(sHtmlContent) == 0:
                 return self.sources
             
-            
             if imdb:
                 a = dom_parser.parse_dom(sHtmlContent, 'a', attrs={'class': 'imdb-link'}, req='href')
                 if a:
@@ -163,7 +153,6 @@ class source:
                     if foundImdb and not foundImdb == imdb:
                         return
             
-
             pattern = r'data-link-id="([^"]+)"[^>]*data-play-url="([^"]+)"[^>]*data-provider-name="([^"]+)"[^>]*data-language-id="([^"]+)"'
             matches = re.findall(pattern, sHtmlContent, re.DOTALL | re.IGNORECASE)
             
@@ -173,20 +162,15 @@ class source:
             if log_utils:
                 logger.info('SerienStream - Found %d links' % len(matches))
             
-            
             self.episode_referer = full_url
             
-
             for link_id, play_url, provider_name, language_id in matches:
                 try:
-                    
                     if language_id != '1':
                         continue
                     
-                    
                     redirect_url = urljoin(self.base_link, play_url)
                     
-
                     quality = 'SD'
                     try:
                         quality_pattern = r'data-provider-name="' + re.escape(provider_name) + r'"[^>]*>(.*?)</button>'
@@ -195,7 +179,6 @@ class source:
                             quality = 'HD'
                     except:
                         pass
-                    
                     
                     self.sources.append({
                         'source': provider_name,
@@ -232,7 +215,6 @@ class source:
             if log_utils:
                 logger.info('SerienStream - Resolving: %s' % url[:80])
             
-
             try:
                 import requests
                 requests.packages.urllib3.disable_warnings()
@@ -244,13 +226,8 @@ class source:
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
                 })
                 
-            
                 response = session.get(url, allow_redirects=True, verify=False, timeout=10)
                 final_url = response.url
-                
-                if log_utils:
-                    logger.info('SerienStream - Resolved to: %s' % final_url[:80])
-                
                 
                 if final_url and final_url != url and len(final_url) > 20:
                     return final_url
@@ -258,7 +235,6 @@ class source:
             except:
                 pass
             
-
             try:
                 oRequest = cRequestHandler(url, ignoreErrors=True)
                 oRequest.addHeaderEntry('User-Agent', 'Mozilla/5.0')
@@ -273,7 +249,6 @@ class source:
             except:
                 pass
             
-
             if log_utils:
                 logger.info('SerienStream - Could not resolve, returning original URL')
             return url
