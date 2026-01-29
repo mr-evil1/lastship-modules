@@ -1,95 +1,89 @@
 # -*- coding: utf-8 -*-
 import re
 import sys
-
-try:
-    from resources.lib.control import getSetting, urljoin, setSetting
-except:
-    pass
-
-try:
-    from resources.lib.requestHandler import cRequestHandler
-except:
-    cRequestHandler = None
-
-try:
-    from scrapers.modules import cleantitle, dom_parser
-except:
-    pass
-
-try:
-    from resources.lib.utils import isBlockedHoster
-except:
-    isBlockedHoster = None
-
-try:
-    from resources.lib import log_utils
-except:
-    log_utils = None
+from resources.lib.control import getSetting, urljoin, setSetting
+from resources.lib.requestHandler import cRequestHandler
+from scrapers.modules import cleantitle, dom_parser
+from resources.lib.utils import isBlockedHoster
+from resources.lib.tools import logger, cParser
 
 
 SITE_IDENTIFIER = 'serienstream'
 SITE_DOMAIN = 's.to'
 SITE_NAME = 'SerienStream'
-
+log_utils=True
 
 class source:
     def __init__(self):
-        self.priority = 2
+        self.priority = 1
         self.language = ['de']
         self.domain = getSetting('provider.' + SITE_IDENTIFIER + '.domain', SITE_DOMAIN)
-        self.base_link = 'https://' + self.domain
-        self.search_link = '/serien'
+        
+        if getSetting('bypassDNSlock') != 'true':
+            self.base_link = 'https://' + self.domain
+        else:
+            self.base_link ='http://186.2.175.5'
+        self.search_link = '/suche?term='
+        
         self.sources = []
         
         if log_utils:
-            log_utils.log('SerienStream - Initialized with domain: %s' % self.domain, log_utils.LOGDEBUG)
+            logger.info('SerienStream - Init: %s' % self.base_link)
 
     def run(self, titles, year, season=0, episode=0, imdb='', hostDict=None):
-        aLinks = []
-        
         if season == 0:
-            if log_utils:
-                log_utils.log('SerienStream - Skipping - season is 0', log_utils.LOGDEBUG)
             return self.sources
         
         try:
             t = [cleantitle.get(i) for i in titles if i]
-            if log_utils:
-                log_utils.log('SerienStream - Searching for titles: %s (S%02dE%02d)' % (titles, season, episode), log_utils.LOGDEBUG)
-            
-            url = urljoin(self.base_link, self.search_link)
-            
-            if cRequestHandler:
-                oRequest = cRequestHandler(url)
-                oRequest.cacheTime = 60*60*24*7
-                sHtmlContent = oRequest.request()
-            else:
-                import requests
-                requests.packages.urllib3.disable_warnings()
-                r = requests.get(url, timeout=15, verify=False)
-                sHtmlContent = r.text
-            
-            links = dom_parser.parse_dom(sHtmlContent, "div", attrs={"class": "genre"})
-            links = dom_parser.parse_dom(links, "a")
-            links = [(i.attrs["href"], i.content) for i in links]
             
             if log_utils:
-                log_utils.log('SerienStream - Found %d series in list' % len(links), log_utils.LOGDEBUG)
-            for i in links:
-                for a in t:
+                logger.info('SerienStream - Search: S%02dE%02d' % (season, episode))
+            
+
+            aLinks = []
+            for title in titles:
+                if not title:
+                    continue
+                
+                try:
                     try:
-                        if any([a in cleantitle.get(i[1])]):
-                            aLinks.append({'source': i[0]})
-                            if log_utils:
-                                log_utils.log('SerienStream - Matched series: %s' % i[1], log_utils.LOGDEBUG)
-                            break
+                        from urllib import quote_plus
                     except:
-                        pass
+                        from urllib.parse import quote_plus
+                    
+                    search_term = quote_plus(title.encode('utf-8') if isinstance(title, str) else title)
+                    search_url = urljoin(self.base_link, self.search_link + search_term)
+                    
+                    oRequest = cRequestHandler(search_url)
+                    oRequest.addHeaderEntry('User-Agent', 'Mozilla/5.0')
+                    sHtmlContent = oRequest.request()
+                    
+                    links = self._parse_search_results(sHtmlContent)
+                    
+                    if links:
+                        for href, series_title in links:
+                            for clean_title in t:
+                                try:
+                                    if clean_title in cleantitle.get(series_title):
+                                        aLinks.append({'source': href})
+                                        if log_utils:
+                                            logger.info('SerienStream - Found: %s' % href)
+                                        break
+                                except:
+                                    pass
+                            if aLinks:
+                                break
+                    
+                    if aLinks:
+                        break
+                        
+                except Exception as e:
+                    if log_utils:
+                        logger.info('SerienStream - Search error: %s' % str(e))
+                    continue
             
             if len(aLinks) == 0:
-                if log_utils:
-                    log_utils.log('SerienStream - No matching series found', log_utils.LOGWARNING)
                 return self.sources
             
             for i in aLinks:
@@ -98,161 +92,197 @@ class source:
         
         except Exception as e:
             if log_utils:
-                log_utils.log('SerienStream - ERROR in run: %s' % str(e), log_utils.LOGERROR)
-                import traceback
-                log_utils.log('SerienStream - %s' % traceback.format_exc(), log_utils.LOGERROR)
+                logger.info('SerienStream - Error: %s' % str(e))
             return self.sources
         
         return self.sources
 
-    def run2(self, url, year, season=0, episode=0, hostDict=None, imdb=None):
+    def _parse_search_results(self, html):
+        links = []
+        
+        try:
+            patterns = [
+                r'href="https?://[^/]+(/serie/[^"]+)"',
+                r'href="(/serie/[^"]+)"',
+            ]
+            
+            all_serie_hrefs = []
+            for pattern in patterns:
+                matches = re.findall(pattern, html, re.IGNORECASE)
+                all_serie_hrefs.extend(matches)
+            
+            all_serie_hrefs = list(set(all_serie_hrefs))
+            
+            for href in all_serie_hrefs:
+                try:
+                    title_pattern = r'href="[^"]*' + re.escape(href) + r'"[^>]*title="([^"]+)"'
+                    title_match = re.search(title_pattern, html, re.IGNORECASE)
+                    
+                    if title_match:
+                        title = title_match.group(1)
+                    else:
+                        title = href.split('/')[-1].replace('-', ' ').title()
+                    
+                    if title:
+                        title = re.sub(r'<[^>]+>', '', title).strip()
+                        links.append((href, title))
+                        
+                except:
+                    pass
+                
+        except Exception as e:
+            if log_utils:
+                logger.info('SerienStream - Parse error: %s' % str(e))
+        
+        return links
 
+    def run2(self, url, year, season=0, episode=0, hostDict=None, imdb=None):
         try:
             url = url[:-1] if url.endswith('/') else url
             if "staffel" in url:
                 url = re.findall("(.*?)staffel", url)[0]
-            url += '/staffel-%d/episode-%d' % (int(season), int(episode))
-            url = urljoin(self.base_link, url)
+            
+            episode_url = '%s/staffel-%d/episode-%d' % (url, int(season), int(episode))
+            full_url = urljoin(self.base_link, episode_url)
             
             if log_utils:
-                log_utils.log('SerienStream - Episode URL: %s' % url, log_utils.LOGDEBUG)
+                logger.info('SerienStream - Episode: %s' % full_url)
             
-            if cRequestHandler:
-                sHtmlContent = cRequestHandler(url).request()
-            else:
-                import requests
-                requests.packages.urllib3.disable_warnings()
-                r = requests.get(url, timeout=15, verify=False)
-                sHtmlContent = r.text
+            oRequest = cRequestHandler(full_url)
+            oRequest.addHeaderEntry('User-Agent', 'Mozilla/5.0')
+            sHtmlContent = oRequest.request()
             
-            a = dom_parser.parse_dom(sHtmlContent, 'a', attrs={'class': 'imdb-link'}, req='href')
-            if a and imdb:
-                foundImdb = a[0].attrs.get("data-imdb", '')
-                if foundImdb and not foundImdb == imdb:
-                    if log_utils:
-                        log_utils.log('SerienStream - IMDB mismatch: %s != %s' % (foundImdb, imdb), log_utils.LOGWARNING)
-                    return
-            
-            lr = dom_parser.parse_dom(sHtmlContent, 'div', attrs={'class': 'hosterSiteVideo'})
-            
-            r = dom_parser.parse_dom(lr, 'li', attrs={'data-lang-key': re.compile('[1]')})
-            
-            if not r:
-                r = dom_parser.parse_dom(lr, 'li', attrs={'data-lang-key': re.compile('[1|2|3]')})
-            
-            if not r:
-                if log_utils:
-                    log_utils.log('SerienStream - No hosters found', log_utils.LOGWARNING)
+            if len(sHtmlContent) == 0:
                 return self.sources
             
-            r = [(i.attrs['data-link-target'], 
-                  dom_parser.parse_dom(i, 'h4'),
-                  'subbed' if i.attrs.get('data-lang-key') == '3' else '' if i.attrs.get('data-lang-key') == '1' else 'English/OV') 
-                 for i in r]
             
-            r = [(i[0], 
-                  re.sub('\s(.*)', '', i[1][0].content) if i[1] else 'Unknown',
-                  'HD' if i[1] and 'hd' in i[1][0].content.lower() else 'SD',
-                  i[2]) 
-                 for i in r if i[1]]
+            if imdb:
+                a = dom_parser.parse_dom(sHtmlContent, 'a', attrs={'class': 'imdb-link'}, req='href')
+                if a:
+                    foundImdb = a[0].attrs.get("data-imdb", '')
+                    if foundImdb and not foundImdb == imdb:
+                        return
+            
+
+            pattern = r'data-link-id="([^"]+)"[^>]*data-play-url="([^"]+)"[^>]*data-provider-name="([^"]+)"[^>]*data-language-id="([^"]+)"'
+            matches = re.findall(pattern, sHtmlContent, re.DOTALL | re.IGNORECASE)
+            
+            if not matches:
+                return self.sources
             
             if log_utils:
-                log_utils.log('SerienStream - Found %d hosters' % len(r), log_utils.LOGDEBUG)
+                logger.info('SerienStream - Found %d links' % len(matches))
             
-            login, password = self._getLogin()
-            if not login or not password:
-                if log_utils:
-                    log_utils.log('SerienStream - No login credentials', log_utils.LOGERROR)
-                return self.sources
             
-            import requests
-            requests.packages.urllib3.disable_warnings()
-            s = requests.Session()
+            self.episode_referer = full_url
             
-            URL_LOGIN = self.base_link + '/login'
-            payload = {'email': login, 'password': password}
-            
-            try:
-                res = s.get(URL_LOGIN, verify=False, timeout=10)
-                s.post(URL_LOGIN, data=payload, cookies=res.cookies, verify=False, timeout=10)
-                if log_utils:
-                    log_utils.log('SerienStream - Login successful', log_utils.LOGDEBUG)
-            except Exception as e:
-                if log_utils:
-                    log_utils.log('SerienStream - Login failed: %s' % str(e), log_utils.LOGERROR)
-                return self.sources
-            
-            for link_target, host, quality, info in r:
+
+            for link_id, play_url, provider_name, language_id in matches:
                 try:
-                    redirect_url = self.base_link + link_target
-                    sUrl = s.get(redirect_url, verify=False, timeout=10).url
                     
-                    if log_utils:
-                        log_utils.log('SerienStream - Source: %s | %s | %s' % (host, quality, sUrl), log_utils.LOGDEBUG)
-                    if isBlockedHoster:
-                        isBlocked, hoster, resolved_url, prioHoster = isBlockedHoster(sUrl, isResolve=True)
-                        if isBlocked:
-                            continue
-                    else:
-                        resolved_url = sUrl
-                        prioHoster = 0
+                    if language_id != '1':
+                        continue
+                    
+                    
+                    redirect_url = urljoin(self.base_link, play_url)
+                    
+
+                    quality = 'SD'
+                    try:
+                        quality_pattern = r'data-provider-name="' + re.escape(provider_name) + r'"[^>]*>(.*?)</button>'
+                        quality_match = re.search(quality_pattern, sHtmlContent, re.DOTALL | re.IGNORECASE)
+                        if quality_match and 'hd' in quality_match.group(1).lower():
+                            quality = 'HD'
+                    except:
+                        pass
+                    
                     
                     self.sources.append({
-                        'source': host,
+                        'source': provider_name,
                         'quality': quality,
                         'language': 'de',
-                        'url': resolved_url,
-                        'info': info,
+                        'url': redirect_url,
+                        'info': '',
                         'direct': False,
                         'debridonly': False,
                         'priority': self.priority,
-                        'prioHoster': prioHoster
+                        'prioHoster': 0
                     })
+                    
+                    if log_utils:
+                        logger.info('SerienStream - Added: %s' % provider_name)
                     
                 except Exception as e:
                     if log_utils:
-                        log_utils.log('SerienStream - Redirect failed for %s: %s' % (host, str(e)), log_utils.LOGERROR)
+                        logger.info('SerienStream - Error: %s' % str(e))
                     continue
             
             if log_utils:
-                log_utils.log('SerienStream - Returning %d sources' % len(self.sources), log_utils.LOGDEBUG)
+                logger.info('SerienStream - Total: %d sources' % len(self.sources))
+            
             return self.sources
             
         except Exception as e:
             if log_utils:
-                log_utils.log('SerienStream - ERROR in run2: %s' % str(e), log_utils.LOGERROR)
-                import traceback
-                log_utils.log('SerienStream - %s' % traceback.format_exc(), log_utils.LOGERROR)
+                logger.info('SerienStream - Fatal: %s' % str(e))
             return self.sources
     
     def resolve(self, url):
-        return url
+        try:
+            if log_utils:
+                logger.info('SerienStream - Resolving: %s' % url[:80])
+            
+
+            try:
+                import requests
+                requests.packages.urllib3.disable_warnings()
+                
+                session = requests.Session()
+                session.headers.update({
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Referer': getattr(self, 'episode_referer', self.base_link),
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                })
+                
+            
+                response = session.get(url, allow_redirects=True, verify=False, timeout=10)
+                final_url = response.url
+                
+                if log_utils:
+                    logger.info('SerienStream - Resolved to: %s' % final_url[:80])
+                
+                
+                if final_url and final_url != url and len(final_url) > 20:
+                    return final_url
+                    
+            except:
+                pass
+            
+
+            try:
+                oRequest = cRequestHandler(url, ignoreErrors=True)
+                oRequest.addHeaderEntry('User-Agent', 'Mozilla/5.0')
+                oRequest.addHeaderEntry('Referer', getattr(self, 'episode_referer', self.base_link))
+                oRequest.request()
+                final_url = oRequest.getRealUrl()
+                
+                if final_url and final_url != url:
+                    if log_utils:
+                        logger.info('SerienStream - Resolved via cRequestHandler: %s' % final_url[:80])
+                    return final_url
+            except:
+                pass
+            
+
+            if log_utils:
+                logger.info('SerienStream - Could not resolve, returning original URL')
+            return url
+            
+        except Exception as e:
+            if log_utils:
+                logger.info('SerienStream - Resolve error: %s' % str(e))
+            return url
     
     @staticmethod
     def _getLogin():
-        login = ''
-        password = ''
-        
-        try:
-            from scrapers.modules.jsnprotect import cHelper
-            login = cHelper.UserName
-            password = cHelper.PassWord
-            setSetting('serienstream.user', login)
-            setSetting('serienstream.pass', password)
-        except:
-            login = getSetting(SITE_IDENTIFIER + '.user')
-            password = getSetting(SITE_IDENTIFIER + '.pass')
-        
-        if not login or not password:
-            try:
-                import xbmcgui, xbmcaddon
-                AddonName = xbmcaddon.Addon().getAddonInfo('name')
-                xbmcgui.Dialog().ok(AddonName,
-                                    "In den Einstellungen die Kontodaten (Login) für %s eintragen / überprüfen\nBis dahin wird %s von der Suche ausgeschlossen." % (
-                                    SITE_NAME, SITE_NAME))
-                setSetting('provider.' + SITE_IDENTIFIER, 'false')
-            except:
-                pass
-            return '', ''
-        
-        return login, password
+        return '', ''
