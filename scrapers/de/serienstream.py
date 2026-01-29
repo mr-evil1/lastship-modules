@@ -15,7 +15,7 @@ log_utils=True
 
 class source:
     def __init__(self):
-        self.priority = 1
+        self.priority = 2
         self.language = ['de']
         self.domain = getSetting('provider.' + SITE_IDENTIFIER + '.domain', SITE_DOMAIN)
         
