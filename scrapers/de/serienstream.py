@@ -7,6 +7,7 @@ from scrapers.modules import cleantitle, dom_parser
 from resources.lib.utils import isBlockedHoster
 from resources.lib.tools import logger, cParser
 
+
 SITE_IDENTIFIER = 'serienstream'
 SITE_DOMAIN = 's.to'
 SITE_NAME = 'SerienStream'
@@ -45,9 +46,27 @@ class source:
                     continue
                 
                 try:
-                    from urllib.parse import quote
-                    search_term = quote(title, safe='')
+                    # URL encoding - use quote instead of quote_plus for %20 instead of +
+                    try:
+                        from urllib import quote
+                    except:
+                        from urllib.parse import quote
+                    
+                    # Encode to UTF-8 first, then URL encode
+                    if isinstance(title, str):
+                        try:
+                            # Python 3
+                            search_term = quote(title)
+                        except:
+                            # Python 2
+                            search_term = quote(title.encode('utf-8'))
+                    else:
+                        search_term = quote(title)
+                    
                     search_url = urljoin(self.base_link, self.search_link + search_term)
+                    
+                    if log_utils:
+                        logger.info('SerienStream - Search URL: %s' % search_url)
                     
                     oRequest = cRequestHandler(search_url)
                     oRequest.addHeaderEntry('User-Agent', 'Mozilla/5.0')
@@ -56,15 +75,24 @@ class source:
                     links = self._parse_search_results(sHtmlContent)
                     
                     if links:
+                        if log_utils:
+                            logger.info('SerienStream - Found %d results for "%s"' % (len(links), title))
+                        
                         for href, series_title in links:
                             for clean_title in t:
-                                if clean_title in cleantitle.get(series_title):
-                                    aLinks.append({'source': href})
-                                    if log_utils:
-                                        logger.info('SerienStream - Found: %s' % href)
-                                    break
+                                try:
+                                    if clean_title in cleantitle.get(series_title):
+                                        aLinks.append({'source': href})
+                                        if log_utils:
+                                            logger.info('SerienStream - Match: %s -> %s' % (series_title, href))
+                                        break
+                                except:
+                                    pass
                             if aLinks:
                                 break
+                    else:
+                        if log_utils:
+                            logger.info('SerienStream - No results for "%s"' % title)
                     
                     if aLinks:
                         break
@@ -75,6 +103,8 @@ class source:
                     continue
             
             if len(aLinks) == 0:
+                if log_utils:
+                    logger.info('SerienStream - No matching series found')
                 return self.sources
             
             for i in aLinks:
@@ -228,6 +258,9 @@ class source:
                 
                 response = session.get(url, allow_redirects=True, verify=False, timeout=10)
                 final_url = response.url
+                
+                if log_utils:
+                    logger.info('SerienStream - Resolved to: %s' % final_url[:80])
                 
                 if final_url and final_url != url and len(final_url) > 20:
                     return final_url
