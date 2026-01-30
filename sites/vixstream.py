@@ -14,7 +14,6 @@ params = ParameterHandler()
 SITE_IDENTIFIER = 'vixstream'
 SITE_NAME = 'Vix Streams'
 SITE_ICON = 'vixstream.png'
-
-#DOMAIN = getSetting('plugin_'+ SITE_IDENTIFIER +'.domain', 'vixsrc.to')
-#URL_MAIN = 'https://' + DOMAIN
-def load():pass
+import xbmcgui
+def load():
+    xbmcgui.Dialog().notification('xStreamV2','Noch nicht im xStream V2 verfügbar')
