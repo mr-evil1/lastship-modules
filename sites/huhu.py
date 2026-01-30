@@ -14,3 +14,6 @@ params = ParameterHandler()
 SITE_IDENTIFIER = 'huhu'
 SITE_NAME = 'HUHU Filme'
 SITE_ICON = 'huhu.png'
+import xbmcgui
+def load():
+    xbmcgui.Dialog().notification('xStreamV2','Noch nicht im xStream V2 verfügbar')
