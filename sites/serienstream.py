@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import json, sys, xbmcgui, re
+import json, sys, xbmcgui, re, random
 from resources.lib.ParameterHandler import ParameterHandler
 from resources.lib.requestHandler import cRequestHandler
 from resources.lib.tools import logger, cParser
@@ -23,563 +23,743 @@ DOMAIN = getSetting('plugin_'+ SITE_IDENTIFIER +'.domain', 's.to')
 if DOMAIN.replace('.', '').isdigit():
     URL_MAIN = 'http://' + DOMAIN
     REFERER = 'http://' + DOMAIN
-    proxy = 'true'
-    log_utils.log('Using IP/Proxy: %s' % DOMAIN, log_utils.LOGDEBUG, SITE_IDENTIFIER)
 else:
     URL_MAIN = 'https://' + DOMAIN
     REFERER = 'https://' + DOMAIN
-    proxy = 'false'
-    log_utils.log('Using domain: %s' % DOMAIN, log_utils.LOGDEBUG, SITE_IDENTIFIER)
 
+URL_HOME = URL_MAIN
 URL_SERIES = URL_MAIN + '/serien'
-URL_NEW_SERIES = URL_MAIN + '/neu'
-URL_NEW_EPISODES = URL_MAIN + '/neue-episoden'
 URL_POPULAR = URL_MAIN + '/beliebte-serien'
 URL_LOGIN = URL_MAIN + '/login'
+URL_SEARCH = URL_MAIN + '/suche?term='
 
 if getSetting('bypassDNSlock') == 'true':
     setSetting('plugin_' + SITE_IDENTIFIER + '.domain', '186.2.175.5')
-    log_utils.log('DNS Bypass activated - switching to 186.2.175.5', log_utils.LOGINFO, SITE_IDENTIFIER)
+
+
+_HOMEPAGE_CACHE = None
+_POPULAR_CACHE = None
 
 
 def load():
-    """Menu structure of the site plugin"""
-    log_utils.log('========== LOAD START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
-    logger.info('Load %s' % SITE_NAME)
-    params = ParameterHandler()
+    log_utils.log('========== LOAD ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     username = getSetting('serienstream.user')
     password = getSetting('serienstream.pass')
-    
-    log_utils.log('Username configured: %s' % ('Yes' if username else 'No'), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    log_utils.log('Password configured: %s' % ('Yes' if password else 'No'), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
+
     if username == '' or password == '':
-        log_utils.log('No credentials - showing dialog', log_utils.LOGWARNING, SITE_IDENTIFIER)
         xbmcgui.Dialog().ok('SerienStream', 'Bitte Login-Daten in den Einstellungen eintragen!')
     else:
-        log_utils.log('Building menu items', log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        addDirectoryItem("Alle Serien", 'runPlugin&site=%s&function=showAllSeries&sUrl=%s' % (SITE_NAME, URL_SERIES), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Neue Serien", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_NEW_SERIES), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Neue Folgen", 'runPlugin&site=%s&function=showNewEpisodes&sUrl=%s' % (SITE_NAME, URL_NEW_EPISODES), SITE_ICON, 'DefaultMovies.png')
+        addDirectoryItem("Alle Serien (A-Z)", 'runPlugin&site=%s&function=showLetters' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        addDirectoryItem("Angesagt", 'runPlugin&site=%s&function=showAngesagt' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        addDirectoryItem("Aktuell beliebt", 'runPlugin&site=%s&function=showAktuell' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
         addDirectoryItem("Beliebte Serien", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_POPULAR), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Von A-Z", 'runPlugin&site=%s&function=showValue&sCont=%s&sUrl=%s' % (SITE_NAME, 'catalogNav', URL_MAIN), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Genre", 'runPlugin&site=%s&function=showValue&sCont=%s&sUrl=%s' % (SITE_NAME, 'homeContentGenresList', URL_MAIN), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Suche", 'runPlugin&site=%s&function=showSearch&sUrl=%s' % (SITE_NAME, URL_MAIN), SITE_ICON, 'DefaultAddonsSearch.png')
+        addDirectoryItem("Neu auf S.to", 'runPlugin&site=%s&function=showNeu' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        addDirectoryItem("Geheimtipps", 'runPlugin&site=%s&function=showGeheimtipps' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        addDirectoryItem("Suchtgefahr", 'runPlugin&site=%s&function=showSuchtgefahr' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        addDirectoryItem("Die Beliebtesten", 'runPlugin&site=%s&function=showBeliebtesten' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        addDirectoryItem("Suche", 'runPlugin&site=%s&function=showSearch' % SITE_NAME, SITE_ICON, 'DefaultAddonsSearch.png')
     setEndOfDirectory()
-    log_utils.log('========== LOAD END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
 
 
-def showValue():
-    log_utils.log('========== showValue START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
-    params = ParameterHandler()
-    sUrl = params.getValue('sUrl')
-    log_utils.log('Fetching URL: %s' % sUrl, log_utils.LOGDEBUG, SITE_IDENTIFIER)
+def _getHomepage(force=False):
+    global _HOMEPAGE_CACHE
+
+    if _HOMEPAGE_CACHE is None or force:
+        log_utils.log('Loading homepage (Force: %s)' % str(force), log_utils.LOGINFO, SITE_IDENTIFIER)
+        oRequest = cRequestHandler(URL_HOME, ignoreErrors=True, caching=(not force))
+        
+        if not force:
+            oRequest.cacheTime = 60 * 30  # 30 Minuten
+        sContent = oRequest.request()
+        
+        if isinstance(sContent, bytes):
+            try:
+                sContent = sContent.decode('utf-8')
+            except:
+                sContent = str(sContent)
+
+        _HOMEPAGE_CACHE = sContent
+        log_utils.log('Homepage loaded: %d characters' % len(_HOMEPAGE_CACHE) if _HOMEPAGE_CACHE else 0, log_utils.LOGINFO, SITE_IDENTIFIER)
+    else:
+        log_utils.log('Using global cached homepage', log_utils.LOGINFO, SITE_IDENTIFIER)
+
+    return _HOMEPAGE_CACHE
+
+
+def _getPopular():
+    global _POPULAR_CACHE
+
+    if _POPULAR_CACHE is None:
+        log_utils.log('Loading popular page for first time', log_utils.LOGINFO, SITE_IDENTIFIER)
+        oRequest = cRequestHandler('http://186.2.175.5/beliebte-serien', ignoreErrors=True)
+        oRequest.cacheTime = 60 * 30  # 30 Minuten
+        sContent = oRequest.request()
+        
+        if isinstance(sContent, bytes):
+            try:
+                sContent = sContent.decode('utf-8')
+            except:
+                sContent = str(sContent)
+                
+        _POPULAR_CACHE = sContent
+        log_utils.log('Popular loaded: %d characters' % len(_POPULAR_CACHE) if _POPULAR_CACHE else 0, log_utils.LOGINFO, SITE_IDENTIFIER)
+    else:
+        log_utils.log('Using cached popular page', log_utils.LOGINFO, SITE_IDENTIFIER)
+
+    return _POPULAR_CACHE
+
+
+def showLetters():
+    log_utils.log('========== showLetters ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+
+    letters = ['0-9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+               'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '#']
+
+    for letter in letters:
+        addDirectoryItem('[B]%s[/B]' % letter, 'runPlugin&site=%s&function=showAllSeries&sUrl=%s&letter=%s' % (SITE_NAME, URL_SERIES, letter), SITE_ICON, 'DefaultMovies.png')
+
+    setEndOfDirectory()
+
+
+def showAngesagt():
+    log_utils.log('========== showAngesagt ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+
+    sHtmlContent = _getPopular()
+
+    if not sHtmlContent:
+        xbmcgui.Dialog().ok('Fehler', 'Konnte Seite nicht laden')
+        return
+
+    series = _parseSimple(sHtmlContent)
+    _displaySeries(series)
+
+
+def showNeu():
+    log_utils.log('========== showNeu ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+    sHtmlContent = _getHomepage()
+    series = _parseNeuContent(sHtmlContent)
+    if not series:
+        log_utils.log('showNeu: Cache empty or corrupt, retrying fresh...', log_utils.LOGWARNING, SITE_IDENTIFIER)
+        sHtmlContent = _getHomepage(force=True)
+        series = _parseNeuContent(sHtmlContent)
+
+    if series:
+        _displaySeries(series)
+    else:
+        log_utils.log('showNeu: No series found after retry', log_utils.LOGERROR, SITE_IDENTIFIER)
+        xbmcgui.Dialog().ok('Info', 'Keine Serien gefunden')
+
+
+def _parseNeuContent(sHtmlContent):
+    if not sHtmlContent: 
+        return []
+    pattern = 'id="section-1"[^>]*>(.*?)<div[^>]*id="section-'
+    isMatch, section = cParser.parseSingleResult(sHtmlContent, pattern)
+
+    if not isMatch:
+        pattern = 'id="section-1"[^>]*>(.*?)$'
+        isMatch, section = cParser.parseSingleResult(sHtmlContent, pattern)
+
+    if isMatch and section:
+        return _parseNeu(section)
+    return []
+
+
+def showGeheimtipps():
+    log_utils.log('========== showGeheimtipps ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+    _showFromHeading('Geheimtipps')
+
+
+def showSuchtgefahr():
+    log_utils.log('========== showSuchtgefahr ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+    _showFromHeading('Suchtgefahr')
+
+
+def showBeliebtesten():
+    log_utils.log('========== showBeliebtesten ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+    _showFromHeading('Die Beliebtesten')
+
+
+def showAktuell():
+    log_utils.log('========== showAktuell ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+
+    sHtmlContent = _getPopular()
+
+    if not sHtmlContent:
+        xbmcgui.Dialog().ok('Fehler', 'Konnte Seite nicht laden')
+        return
+
+    series = _parseSimple(sHtmlContent)
+    _displaySeries(series[::2])
+
+
+def _showFromHeading(heading_text):
+    sHtmlContent = _getHomepage()
+    series = _parseHeadingContent(sHtmlContent, heading_text)
+
+    if not series:
+        log_utils.log('Heading "%s" not found/empty, retrying fresh...' % heading_text, log_utils.LOGWARNING, SITE_IDENTIFIER)
+        sHtmlContent = _getHomepage(force=True)
+        series = _parseHeadingContent(sHtmlContent, heading_text)
+
+    if series:
+        _displaySeries(series)
+    else:
+        log_utils.log('No section found for heading: %s' % heading_text, log_utils.LOGERROR, SITE_IDENTIFIER)
+        xbmcgui.Dialog().ok('Info', 'Keine Serien gefunden für: %s' % heading_text)
+
+
+def _parseHeadingContent(sHtmlContent, heading_text):
+    if not sHtmlContent: return []
+
+    log_utils.log('Looking for heading: %s' % heading_text, log_utils.LOGINFO, SITE_IDENTIFIER)
+
+    patterns = [
+        '<h4[^>]*class="[^"]*mb-2[^"]*h5[^"]*fw-bold[^"]*text-primary[^"]*"[^>]*>%s</h4>.*?<ul[^>]*class="[^"]*discover-list[^"]*"[^>]*>(.*?)</ul>' % heading_text,
+        '>%s</h4>.*?<ul[^>]*>(.*?)</ul>' % heading_text,
+        '>%s</h4>.*?<div[^>]*class="row"[^>]*>(.*?)</div>\\s*</div>' % heading_text
+    ]
+
+    section = None
+    for idx, pattern in enumerate(patterns, 1):
+        isMatch, section = cParser.parseSingleResult(sHtmlContent, pattern)
+        if isMatch and section:
+            log_utils.log('Pattern %d matched for %s' % (idx, heading_text), log_utils.LOGINFO, SITE_IDENTIFIER)
+            break
+
+    if section:
+        return _parseList(section)
+    return []
+
+
+def _extractThumbnail(html_content):
+    patterns = [
+        r'<img[^>]*data-src="([^"]+)"',
+        r'<source[^>]*data-srcset="([^\s"]+)',
+        r'<source[^>]*\ssrcset="([^\s"]+)',
+        r'<img[^>]*src="((?:https?://[^"]+)?/media/[^"]+)"',
+        r'<img[^>]*src="(https?://[^"]+/media/[^"]+)"',
+    ]
     
-    oRequest = cRequestHandler(sUrl)
-    oRequest.cacheTime = 60 * 60 * 24
-    sHtmlContent = oRequest.request()
-    log_utils.log('HTML content length: %d' % len(sHtmlContent), log_utils.LOGDEBUG, SITE_IDENTIFIER)
+    for pattern in patterns:
+        match = re.search(pattern, html_content, re.IGNORECASE | re.DOTALL)
+        if match:
+            thumb = match.group(1)
+            thumb = thumb.split()[0].rstrip(',')
+            if thumb.startswith('data:'):
+                continue
+            return thumb
     
-    isMatch, sContainer = cParser.parseSingleResult(sHtmlContent, '<ul[^>]*class="%s"[^>]*>(.*?)<\\/ul>' % params.getValue('sCont'))
+    return ''
+
+
+def _parseSimple(sHtmlContent):
+    aResult = []
+    card_pattern = r'<a\s+href="([^"]*)"[^>]*class="[^"]*show-card[^"]*"[^>]*>(.*?)</a>'
+    isMatch, cards = cParser.parse(sHtmlContent, card_pattern)
+    
     if isMatch:
-        log_utils.log('Container found', log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        isMatch, aResult = cParser.parse(sContainer, '<li>\s*<a[^>]*href="([^"]*)"[^>]*>(.*?)<\\/a>\s*<\\/li>')
-    if not isMatch:
-        log_utils.log('No matches found', log_utils.LOGWARNING, SITE_IDENTIFIER)
+        for url, card_content in cards:
+            if '/serie/' not in url:
+                continue
+                
+            title_match = re.search(r'alt="([^"]+)"', card_content)
+            if not title_match:
+                title_match = re.search(r'<h6[^>]*>([^<]+)</h6>', card_content)
+            
+            title = title_match.group(1) if title_match else ''
+            
+            thumb = _extractThumbnail(card_content)
+            
+            if url and title and url not in [x[0] for x in aResult]:
+                aResult.append((url, title.strip(), thumb))
+    
+
+    if not aResult:
+        card_pattern2 = r'<a[^>]*class="[^"]*show-card[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)</a>'
+        isMatch, cards = cParser.parse(sHtmlContent, card_pattern2)
+        
+        if isMatch:
+            for url, card_content in cards:
+                if '/serie/' not in url:
+                    continue
+                    
+                title_match = re.search(r'alt="([^"]+)"', card_content)
+                if not title_match:
+                    title_match = re.search(r'<h6[^>]*>([^<]+)</h6>', card_content)
+                
+                title = title_match.group(1) if title_match else ''
+                thumb = _extractThumbnail(card_content)
+                
+                if url and title and url not in [x[0] for x in aResult]:
+                    aResult.append((url, title.strip(), thumb))
+    
+
+    if not aResult:
+        pattern = r'<a[^>]*href="([^"]*serie/[^"]+)"[^>]*>.*?<img[^>]+(?:data-src|src)="([^"]+)"[^>]*alt="([^"]+)"'
+        isMatch, results = cParser.parse(sHtmlContent, pattern)
+        
+        if isMatch:
+            for url, thumb, title in results:
+                if url not in [x[0] for x in aResult]:
+                    aResult.append((url, title.strip(), thumb))
+
+    return aResult
+
+
+def _parseNeu(section_content):
+    aResult = []
+    col_pattern = r'<div[^>]*class="col[^"]*"[^>]*>(.*?)</div>\s*(?=<div[^>]*class="col|$)'
+    isMatch, cols = cParser.parse(section_content, col_pattern)
+    
+    if isMatch:
+        for col_content in cols:
+            url_match = re.search(r'href="([^"]*serie/[^"]+)"', col_content)
+            if not url_match:
+                continue
+            url = url_match.group(1)
+            
+            title = ''
+            title_match = re.search(r'alt="([^"]+)"', col_content)
+            if title_match:
+                title = title_match.group(1)
+            else:
+                title_match = re.search(r'title="([^"]+)"', col_content)
+                if title_match:
+                    title = title_match.group(1)
+                else:
+                    title_match = re.search(r'<h6[^>]*>.*?<a[^>]*>([^<]+)</a>', col_content, re.DOTALL)
+                    if title_match:
+                        title = title_match.group(1)
+            
+            thumb = _extractThumbnail(col_content)
+            
+            if url and title and url not in [x[0] for x in aResult]:
+                aResult.append((url, title.strip(), thumb))
+    
+    if not aResult:
+        pattern = r'<a href="(/serie/[^"]+)"[^>]*>.*?<img[^>]+(?:data-src|src)="([^"]+)"[^>]*>.*?<h3[^>]*>\s*<span>([^<]+)</span>'
+        isMatch, results = cParser.parse(section_content, pattern)
+
+        if isMatch and results:
+            log_utils.log('_parseNeu: Found %d series with fallback' % len(results), log_utils.LOGINFO, SITE_IDENTIFIER)
+            for url, thumb, title in results:
+                if url not in [x[0] for x in aResult]:
+                    aResult.append((url, title.strip(), thumb))
+
+    return aResult
+
+
+def _parseList(section_content):
+    aResult = []
+    li_pattern = r'<li[^>]*class="[^"]*d-flex[^"]*"[^>]*>(.*?)</li>'
+    isMatch, li_items = cParser.parse(section_content, li_pattern)
+
+    if isMatch and li_items:
+        for li_content in li_items:
+            url_match = re.search(r'href="(/serie/[^"]+)"', li_content)
+            if not url_match:
+                url_match = re.search(r'href="([^"]*serie/[^"]+)"', li_content)
+            if not url_match:
+                continue
+            sUrl = url_match.group(1)
+            sTitle = ''
+            
+            title_match = re.search(r'<span[^>]*class="[^"]*d-block[^"]*fw-semibold[^"]*"[^>]*>([^<]+)</span>', li_content)
+            if title_match:
+                sTitle = title_match.group(1)
+            else:
+
+                title_match = re.search(r'alt="([^"]+)"', li_content)
+                if title_match:
+                    sTitle = title_match.group(1)
+                else:
+                    title_match = re.search(r'title="([^"]+)"', li_content)
+                    if title_match:
+                        sTitle = title_match.group(1)
+            
+            if not sTitle:
+                continue
+                
+            sThumbnail = _extractThumbnail(li_content)
+
+            if sUrl not in [x[0] for x in aResult]:
+                aResult.append((sUrl, sTitle.strip(), sThumbnail))
+
+    if not aResult:
+        simple_pattern = r'<li[^>]*>.*?<a[^>]*href="([^"]*serie/[^"]+)"[^>]*>.*?<img[^>]*(?:data-src|src)="([^"]+)"[^>]*alt="([^"]+)"'
+        isMatch, results = cParser.parse(section_content, simple_pattern)
+        if isMatch:
+            for url, thumb, title in results:
+                if url not in [x[0] for x in aResult]:
+                    aResult.append((url, title.strip(), thumb))
+
+    return aResult
+
+
+def _displaySeries(series_list):
+    if not series_list:
         return
 
-    log_utils.log('Found %d items' % len(aResult), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    for sUrl, sName in aResult:
-        sUrl = sUrl if sUrl.startswith('http') else URL_MAIN + sUrl
-        params.setParam('sUrl', sUrl)
-        addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sUrl), SITE_ICON, 'DefaultMovies.png')
+    for sUrl, sName, sThumbnail in series_list:
+        if not sUrl.startswith('http'):
+            sUrl = URL_MAIN + sUrl if sUrl.startswith('/') else URL_MAIN + '/' + sUrl
+
+        if sThumbnail:
+            if not sThumbnail.startswith('http'):
+                sThumbnail = URL_MAIN + sThumbnail if sThumbnail.startswith('/') else URL_MAIN + '/' + sThumbnail
+        else:
+            serie_slug = sUrl.rstrip('/').split('/')[-1]
+
+            sThumbnail = SITE_ICON
+            log_utils.log('No thumbnail for: %s, using default' % sName, log_utils.LOGDEBUG, SITE_IDENTIFIER)
+
+        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, sName, sThumbnail, sUrl), sThumbnail, 'DefaultMovies.png')
+
     setEndOfDirectory()
-    log_utils.log('========== showValue END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
 
 
-def showAllSeries(entryUrl=False, sSearchText=False, bGlobal=False):
-    log_utils.log('========== showAllSeries START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+
+def showAllSeries(entryUrl=False, sSearchText=False):
+    log_utils.log('========== showAllSeries ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
+
     if not entryUrl:
         entryUrl = params.getValue('sUrl')
-    
-    log_utils.log('URL: %s' % entryUrl, log_utils.LOGDEBUG, SITE_IDENTIFIER)
+
+    letter = params.getValue('letter')
+
     oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
     oRequest.cacheTime = 60 * 60 * 24
     sHtmlContent = oRequest.request()
-    log_utils.log('HTML length: %d' % len(sHtmlContent), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    pattern = '<a[^>]*href="(\\/serie\\/[^"]*)"[^>]*>(.*?)</a>'
-    isMatch, aResult = cParser.parse(sHtmlContent, pattern)
-    
-    if not isMatch:
-        log_utils.log('No series found', log_utils.LOGWARNING, SITE_IDENTIFIER)
+
+    aResult = []
+
+    pattern = '<a[^>]*href="([^"]+/serie/[^"]+)"[^>]*>.*?<img[^>]+(?:data-src|src)="([^"]+)"[^>]+alt="([^"]+)"'
+    isMatch, result = cParser.parse(sHtmlContent, pattern)
+
+    if isMatch:
+        for url, thumb, title in result:
+            aResult.append((url, title, thumb))
+
+    if not aResult:
+        pattern = '<a[^>]*href="(\\/serie\\/[^"]*)"[^>]*>(.*?)</a>'
+        isMatch, result = cParser.parse(sHtmlContent, pattern)
+        if isMatch:
+            for url, title in result:
+                aResult.append((url, title, ''))
+
+    if not aResult:
         return
 
-    log_utils.log('Found %d series' % len(aResult), log_utils.LOGINFO, SITE_IDENTIFIER)
-    total = len(aResult)
-    for sUrl, sName in aResult:
-        if sSearchText and not cParser().search(sSearchText, sName):
+    for sUrl, sName, sThumbnail in aResult:
+        if sSearchText and not sSearchText.lower() in sName.lower():
             continue
-        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&mediatype=%s&sUrl=%s' % (SITE_NAME, sName, 'tvshow', URL_MAIN + sUrl), SITE_ICON, 'DefaultMovies.png')
+
+        if letter:
+            first_char = sName[0].upper()
+            if letter == '0-9':
+                if not first_char.isdigit():
+                    continue
+            elif letter == '#':
+                if first_char.isalnum():
+                    continue
+            else:
+                if first_char != letter:
+                    continue
+
+        if not sUrl.startswith('http'):
+            sUrl = URL_MAIN + sUrl if sUrl.startswith('/') else URL_MAIN + '/' + sUrl
+
+        if sThumbnail and not sThumbnail.startswith('http'):
+            sThumbnail = URL_MAIN + sThumbnail if sThumbnail.startswith('/') else URL_MAIN + '/' + sThumbnail
+
+        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, sName, sThumbnail, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
+
     setEndOfDirectory()
-    log_utils.log('========== showAllSeries END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
 
-
-def showNewEpisodes(entryUrl=False, bGlobal=False):
-    log_utils.log('========== showNewEpisodes START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+def showEntries(entryUrl=False):
+    log_utils.log('========== showEntries ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
     if not entryUrl:
         entryUrl = params.getValue('sUrl')
-    
-    log_utils.log('URL: %s' % entryUrl, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 4
-    sHtmlContent = oRequest.request()
-    log_utils.log('HTML length: %d' % len(sHtmlContent), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    pattern = '<div[^>]*class="col-md-[^"]*"[^>]*>\s*<a[^>]*href="([^"]*)"[^>]*>\s*<strong>([^<]+)</strong>\s*<span[^>]*>([^<]+)</span>'
-    isMatch, aResult = cParser.parse(sHtmlContent, pattern)
-    
-    if not isMatch:
-        log_utils.log('No episodes found', log_utils.LOGWARNING, SITE_IDENTIFIER)
-        return
 
-    log_utils.log('Found %d new episodes' % len(aResult), log_utils.LOGINFO, SITE_IDENTIFIER)
-    total = len(aResult)
-    for sUrl, sName, sInfo in aResult:
-        sMovieTitle = sName + ' ' + sInfo
-        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&mediatype=%s&sUrl=%s' % (SITE_NAME, sMovieTitle, 'tvshow', URL_MAIN + sUrl), SITE_ICON, 'DefaultMovies.png')
-    setEndOfDirectory()
-    log_utils.log('========== showNewEpisodes END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
-
-
-def showEntries(entryUrl=False, bGlobal=False):
-    log_utils.log('========== showEntries START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
-    params = ParameterHandler()
-    if not entryUrl:
-        entryUrl = params.getValue('sUrl')
-    
-    log_utils.log('URL: %s' % entryUrl, log_utils.LOGDEBUG, SITE_IDENTIFIER)
     oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
     oRequest.cacheTime = 60 * 60 * 6
     sHtmlContent = oRequest.request()
-    log_utils.log('HTML length: %d' % len(sHtmlContent), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    pattern = '<div[^>]*class="col-md-[^"]*"[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>.*?data-src="([^"]*).*?<h3>(.*?)<span[^>]*class="paragraph-end">.*?</div>'
-    isMatch, aResult = cParser.parse(sHtmlContent, pattern)
-    
-    if not isMatch:
-        log_utils.log('No entries found', log_utils.LOGWARNING, SITE_IDENTIFIER)
-        return
-    
-    log_utils.log('Found %d entries' % len(aResult), log_utils.LOGINFO, SITE_IDENTIFIER)
-    total = len(aResult)
-    for sUrl, sThumbnail, sName in aResult:
-        sThumbnail = URL_MAIN + sThumbnail
-        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&mediatype=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, sName, 'tvshows', sThumbnail, URL_MAIN + sUrl), sThumbnail, 'DefaultMovies.png')
 
-    if not bGlobal:
-        pattern = 'pagination">.*?<a href="([^"]+)">&gt;</a>.*?</a></div>'
-        isMatchNextPage, sNextUrl = cParser.parseSingleResult(sHtmlContent, pattern)
-        if isMatchNextPage:
-            log_utils.log('Next page found: %s' % sNextUrl, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-            params.setParam('sUrl', sNextUrl)
-            addDirectoryItem('[B]>>>[/B]', 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sNextUrl), 'next.png', 'next.png')
+    aResult = []
+    
+    card_pattern = r'<a\s+href="([^"]*)"[^>]*class="[^"]*show-card[^"]*"[^>]*>(.*?)</a>'
+    isMatch, cards = cParser.parse(sHtmlContent, card_pattern)
+    
+    if isMatch:
+        for url, card_content in cards:
+            if '/serie/' not in url:
+                continue
+            
+            title_match = re.search(r'alt="([^"]+)"', card_content)
+            if not title_match:
+                title_match = re.search(r'<h6[^>]*>([^<]+)</h6>', card_content)
+            
+            title = title_match.group(1) if title_match else ''
+            thumb = _extractThumbnail(card_content)
+            
+            if url and title and url not in [x[0] for x in aResult]:
+                aResult.append((url, title.strip(), thumb))
+    
+    if not aResult:
+        card_pattern2 = r'<a[^>]*class="[^"]*show-card[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)</a>'
+        isMatch, cards = cParser.parse(sHtmlContent, card_pattern2)
+        
+        if isMatch:
+            for url, card_content in cards:
+                if '/serie/' not in url:
+                    continue
+                
+                title_match = re.search(r'alt="([^"]+)"', card_content)
+                title = title_match.group(1) if title_match else ''
+                thumb = _extractThumbnail(card_content)
+                
+                if url and title and url not in [x[0] for x in aResult]:
+                    aResult.append((url, title.strip(), thumb))
+
+    if not aResult:
+        pattern = r'<a[^>]*href="([^"]+/serie/[^"]+)"[^>]*>.*?<img[^>]+(?:data-src|src)="([^"]+)"[^>]+alt="([^"]+)"'
+        isMatch, result = cParser.parse(sHtmlContent, pattern)
+        if isMatch:
+            for url, thumb, title in result:
+                if url not in [x[0] for x in aResult]:
+                    aResult.append((url, title, thumb))
+
+    if not aResult:
+        return
+
+    for sUrl, sName, sThumbnail in aResult:
+        sUrl = sUrl if sUrl.startswith('http') else URL_MAIN + sUrl
+        if sThumbnail and not sThumbnail.startswith('http'):
+            sThumbnail = URL_MAIN + sThumbnail
+        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, sName, sThumbnail, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
+
     setEndOfDirectory()
-    log_utils.log('========== showEntries END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
 
 
 def showSeasons():
-    log_utils.log('========== showSeasons START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
     sUrl = params.getValue('sUrl')
     sTVShowTitle = params.getValue('TVShowTitle')
-    
-    log_utils.log('URL: %s' % sUrl, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    log_utils.log('TV Show: %s' % sTVShowTitle, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
+    sThumbnailFromList = params.getValue('sThumbnail') or ''
+
     oRequest = cRequestHandler(sUrl)
     sHtmlContent = oRequest.request()
-    log_utils.log('HTML length: %d' % len(sHtmlContent), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    pattern = '<div[^>]*class="hosterSiteDirectNav"[^>]*>.*?<ul>(.*?)<\\/ul>'
-    isMatch, sContainer = cParser.parseSingleResult(sHtmlContent, pattern)
-    if isMatch:
-        log_utils.log('Navigation container found', log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        pattern = '<a[^>]*href="([^"]*)"[^>]*title="([^"]*)"[^>]*>(.*?)</a>.*?'
-        isMatch, aResult = cParser.parse(sContainer, pattern)
-    
+
+    pattern = r'<a[^>]*href="([^"]*/staffel-\d+)"[^>]*data-season-pill="(\d+)"[^>]*>\s*(\d+)\s*<'
+    isMatch, aResult = cParser.parse(sHtmlContent, pattern)
+
     if not isMatch:
-        log_utils.log('No seasons found', log_utils.LOGWARNING, SITE_IDENTIFIER)
         return
 
-    log_utils.log('Found %d seasons/movies' % len(aResult), log_utils.LOGINFO, SITE_IDENTIFIER)
-    isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, '<p[^>]*data-full-description="(.*?)"[^>]*>')
-    isThumbnail, sThumbnail = cParser.parseSingleResult(sHtmlContent, '<div[^>]*class="seriesCoverBox"[^>]*>.*?data-src="([^"]*)"[^>]*>')
-    if isThumbnail:
-        if sThumbnail.startswith('/'):
-            sThumbnail = URL_MAIN + sThumbnail
-        log_utils.log('Thumbnail: %s' % sThumbnail, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    else:
-        sThumbnail = ''
+    isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, r'<div[^>]*class="series-description"[^>]*>.*?<span[^>]*class="description-text">([^<]+)</span>')
+    
 
-    total = len(aResult)
-    for sUrl, sName, sNr in aResult:
-        isMovie = sUrl.endswith('filme')
-        if 'Alle Filme' in sName:
-            sName = 'Filme'
+    sThumbnail = ''
+    thumb_patterns = [
+        r'<img[^>]*data-src="([^"]+)"[^>]*class="[^"]*img-fluid[^"]*w-100[^"]*"',
+        r'<img[^>]*src="([^"]+)"[^>]*class="[^"]*img-fluid[^"]*w-100[^"]*"',
+        r'<picture[^>]*>.*?<img[^>]*(?:data-)?src="([^"]+)"',
+    ]
+    
+    for pattern in thumb_patterns:
+        thumb_match = re.search(pattern, sHtmlContent, re.DOTALL)
+        if thumb_match:
+            sThumbnail = thumb_match.group(1)
+            if not sThumbnail.startswith('http'):
+                sThumbnail = URL_MAIN + sThumbnail if sThumbnail.startswith('/') else URL_MAIN + '/' + sThumbnail
+            break
+    
 
-        mediatype = 'season' if not isMovie else 'movie'
-        log_utils.log('Adding - %s (Type: %s)' % (sName, mediatype), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        
-        if not isMovie:
-            addDirectoryItem(sName, 'runPlugin&site=%s&function=showEpisodes&TVShowTitle=%s&mediatype=%s&sThumbnail=%s&sSeason=%s&sUrl=%s' % (SITE_NAME, sName, mediatype, sThumbnail, sNr, URL_MAIN + sUrl), sThumbnail, 'DefaultMovies.png')
-        else:
-            addDirectoryItem(sName, 'runPlugin&site=%s&function=showEpisodes&TVShowTitle=%s&mediatype=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, sName, mediatype, sThumbnail, URL_MAIN + sUrl), sThumbnail, 'DefaultMovies.png')
+    if not sThumbnail and sThumbnailFromList:
+        sThumbnail = sThumbnailFromList
+
+    for sUrl, sNr, _ in aResult:
+        sName = 'Staffel %s' % sNr
+        sUrl = sUrl if sUrl.startswith('http') else URL_MAIN + sUrl
+        addDirectoryItem(sName, 'runPlugin&site=%s&function=showEpisodes&TVShowTitle=%s&sThumbnail=%s&sSeason=%s&sUrl=%s' % (SITE_NAME, sTVShowTitle, sThumbnail, sNr, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
+
     setEndOfDirectory()
-    log_utils.log('========== showSeasons END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
 
 
 def showEpisodes():
-    log_utils.log('========== showEpisodes START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
     sUrl = params.getValue('sUrl')
     sTVShowTitle = params.getValue('TVShowTitle')
-    sSeason = params.getValue('sSeason')
-    sThumbnail = params.getValue('sThumbnail')
-    
-    log_utils.log('URL: %s' % sUrl, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    log_utils.log('Show: %s, Season: %s' % (sTVShowTitle, sSeason), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    if not sSeason:
-        sSeason = '0'
-    
+    sSeason = params.getValue('sSeason') or '0'
+    sThumbnail = params.getValue('sThumbnail') or ''
+
     isMovieList = sUrl.endswith('filme')
-    log_utils.log('Is movie list: %s' % isMovieList, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
+
     oRequest = cRequestHandler(sUrl)
     oRequest.cacheTime = 60 * 60 * 4
     sHtmlContent = oRequest.request()
-    log_utils.log('HTML length: %d' % len(sHtmlContent), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    pattern = '<table[^>]*class="seasonEpisodesList"[^>]*>(.*?)</table>'
-    isMatch, sContainer = cParser.parseSingleResult(sHtmlContent, pattern)
-    if isMatch:
-        log_utils.log('Episodes table found', log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        if isMovieList == True:
-            pattern = '<tr[^>]*data-episode-season-id="(\\d+).*?<a href="([^"]+)">\\s([^<]+).*?<strong>([^<]+)'
-            isMatch, aResult = cParser.parse(sContainer, pattern)
-            if not isMatch:
-                pattern = '<tr[^>]*data-episode-season-id="(\\d+).*?<a href="([^"]+)">\\s([^<]+).*?<span>([^<]+)'
-                isMatch, aResult = cParser.parse(sContainer, pattern)
-        else:
-            pattern = '<tr[^>]*data-episode-season-id="(\\d+).*?<a href="([^"]+).*?(?:<strong>(.*?)</strong>.*?)?(?:<span>(.*?)</span>.*?)?<'
-            isMatch, aResult = cParser.parse(sContainer, pattern)
-    
+
+    pattern = r'onclick="window.location=\'([^\']+)\'".*?episode-number-cell">\s*(\d+).*?episode-title-ger"[^>]*>([^<]*)<.*?episode-title-eng"[^>]*>([^<]*)<'
+    isMatch, aResult = cParser.parse(sHtmlContent, pattern)
+
     if not isMatch:
-        log_utils.log('No episodes found', log_utils.LOGWARNING, SITE_IDENTIFIER)
         return
-    
-    log_utils.log('Found %d episodes' % len(aResult), log_utils.LOGINFO, SITE_IDENTIFIER)
+
     items = []
-    isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, '<p[^>]*data-full-description="(.*?)"[^>]*>')
-    total = len(aResult)
-    
-    for sID, sUrl2, sNameGer, sNameEng in aResult:
+    isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, r'<div[^>]*class="series-description"[^>]*>.*?<span[^>]*class="description-text">([^<]+)</span>')
+
+    for sUrl2, sID, sNameGer, sNameEng in aResult:
         sName = '%d - ' % int(sID)
-        if isMovieList == True:
-            sName += sNameGer + '- ' + sNameEng
-        else:
-            sName += sNameGer if sNameGer else sNameEng
-        
-        mediatype = 'episode' if not isMovieList else 'movie'
-        log_utils.log('Episode %s: %s (URL: %s)' % (sID, sName, URL_MAIN + sUrl2), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        
+        sName += sNameGer if sNameGer else sNameEng
+
+        sUrl2 = sUrl2 if sUrl2.startswith('http') else URL_MAIN + sUrl2
+
         item = {}
-        item.setdefault('TVShowTitle', sTVShowTitle)
-        item.setdefault('infoTitle', sName)
-        item.setdefault('title', sName)
-        item.setdefault('entryUrl', sUrl)
-        item.setdefault('isTvshow', False)
-        item.setdefault('poster', sThumbnail)
-        item.setdefault('plot', sDesc if isDesc else '')
-        item.setdefault('sThumbnail', sThumbnail)
-        item.setdefault('sUrl', URL_MAIN + sUrl2)
-        item.setdefault('mediatype', mediatype)
+        item['TVShowTitle'] = sTVShowTitle
+        item['title'] = sName
+        item['infoTitle'] = sName
+        item['sUrl'] = sUrl2
+        item['entryUrl'] = sUrl
+        item['isTvshow'] = False
+        item['poster'] = sThumbnail
+        item['sThumbnail'] = sThumbnail
+        item['fanart'] = sThumbnail
+        item['plot'] = sDesc if isDesc else ''
+        item['mediatype'] = 'movie' if isMovieList else 'episode'
+
+        if not isMovieList:
+            item['season'] = int(sSeason)
+            item['episode'] = int(sID)
+
         items.append(item)
-    
-    log_utils.log('Calling xsDirectory with %d items' % len(items), log_utils.LOGDEBUG, SITE_IDENTIFIER)
+
     xsDirectory(items, SITE_NAME)
     setEndOfDirectory()
-    log_utils.log('========== showEpisodes END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
 
 
 def getHosters():
-    """Get hosters with progressDialog and Container.Update"""
-    log_utils.log('========== getHosters START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
-    hosters = []
+    log_utils.log('========== getHosters ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     meta = json.loads(params.getValue('meta'))
-    isResolve = True
-    isProgressDialog = True
     sUrl = meta.get('sUrl')
-    
-    log_utils.log('Episode URL: %s' % sUrl, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    log_utils.log('Meta: %s' % str(meta), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    oRequest = cRequestHandler(sUrl)
+
+    oRequest = cRequestHandler(sUrl, caching=False)
     sHtmlContent = oRequest.request()
-    log_utils.log('HTML length: %d' % len(sHtmlContent), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    if isProgressDialog:
-        progressDialog.create('SerienStream', 'Suche Streams...')
-        log_utils.log('Progress dialog created', log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    items = []
-    t = 0
-    
-    pattern = '<li[^>]*data-lang-key="([^"]+).*?data-link-target="([^"]+).*?<h4>([^<]+)<([^>]+)'
-    pattern2 = 'itemprop="keywords".content=".*?Season...([^"]+).S.*?'
-    
+
+    progressDialog.create('SerienStream', 'Suche Streams...')
+
+    pattern = r'<button[^>]*class="[^"]*link-box[^"]*"[^>]*data-play-url="([^"]+)"[^>]*data-provider-name="([^"]+)"[^>]*data-language-id="([^"]+)"'
     isMatch, aResult = cParser.parse(sHtmlContent, pattern)
-    aResult2 = cParser.parse(sHtmlContent, pattern2)
-    
+
     if not isMatch:
-        log_utils.log('No hosters found in HTML', log_utils.LOGWARNING, SITE_IDENTIFIER)
-        if isProgressDialog:
-            progressDialog.close()
+        progressDialog.close()
         return
-    
-    log_utils.log('Found %d hosters' % len(aResult), log_utils.LOGINFO, SITE_IDENTIFIER)
+
+    items = []
     sLanguage = getSetting('prefLanguage', '0')
-    log_utils.log('Preferred language: %s' % sLanguage, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    for sLang, sUrl, sName, sQuality in aResult:
-        log_utils.log('Processing hoster: %s (Lang: %s, URL: %s)' % (sName, sLang, sUrl), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        
-        # Language filtering
-        if sLanguage == '1':
-            if '2' in sLang or '3' in sLang:
-                log_utils.log('Skipping %s - wrong language' % sName, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-                continue
-            if sLang == '1':
-                sLang = '(DE)'
-        elif sLanguage == '2':
-            if '1' in sLang or '3' in sLang:
-                log_utils.log('Skipping %s - wrong language' % sName, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-                continue
-            if sLang == '2':
-                sLang = '(EN)'
-        elif sLanguage == '0':
-            if sLang == '1':
-                sLang = '(DE)'
-            elif sLang == '2':
-                sLang = '(EN)'
-            elif sLang == '3':
-                sLang = '(EN) Sub: (DE)'
-        
-        # Quality detection
-        if aResult2[0] and 'HD' in aResult2[1]:
-            sQuality = '720'
+    t = 0
+
+    for sUrl, sName, sLang in aResult:
+        if sLanguage == '1' and sLang != '1':
+            continue
+        elif sLanguage == '2' and sLang != '2':
+            continue
+
+        if sLang == '1':
+            sLangLabel = ' (DE)'
+        elif sLang == '2':
+            sLangLabel = ' (EN)'
+        elif sLang == '3':
+            sLangLabel = ' (EN/DE-Sub)'
         else:
-            sQuality = '480'
-        
-        log_utils.log('%s - Language: %s, Quality: %s' % (sName, sLang, sQuality), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        
+            sLangLabel = ''
+
         try:
-            log_utils.log('Getting hoster URL for %s' % sName, log_utils.LOGDEBUG, SITE_IDENTIFIER)
             hurl = getHosterUrl([sUrl, sName])
             streamUrl = hurl[0]['streamUrl']
             isResolve = hurl[0]['resolved']
-            sUrl = streamUrl
-            
-            log_utils.log('Stream URL: %s' % streamUrl, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-            log_utils.log('Resolved: %s' % isResolve, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-            
-            sHoster = cParser.urlparse(streamUrl)
+
             t += 100 / len(aResult)
-            if isProgressDialog:
-                progressDialog.update(int(t), '[CR]Überprüfe Stream von ' + sHoster)
-            
-            if 'outube' in sHoster:
-                sHoster = sHoster.split('.')[0] + ' Trailer'
-                log_utils.log('YouTube trailer detected: %s' % sHoster, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-            
-            if isResolve:
-                isBlocked, sUrl = isBlockedHoster(sUrl, resolve=isResolve)
-                if isBlocked:
-                    log_utils.log('Hoster %s is blocked (resolved)' % sName, log_utils.LOGWARNING, SITE_IDENTIFIER)
-                    continue
-            elif isBlockedHoster(sUrl)[0]:
-                log_utils.log('Hoster %s is blocked' % sName, log_utils.LOGWARNING, SITE_IDENTIFIER)
-                continue
-            
-            items.append((sHoster, sName, meta, isResolve, sUrl, meta.get('sThumbnail')))
-            log_utils.log('Added hoster: %s (%s)' % (sHoster, sUrl), log_utils.LOGINFO, SITE_IDENTIFIER)
-            
-        except Exception as e:
-            log_utils.log('ERROR processing hoster %s: %s' % (sName, str(e)), log_utils.LOGERROR, SITE_IDENTIFIER)
+            progressDialog.update(int(t), sName + sLangLabel)
+
+            if not isBlockedHoster(streamUrl)[0]:
+                displayName = sName + sLangLabel
+                
+                items.append((displayName, displayName, meta, isResolve, streamUrl, meta.get('sThumbnail')))
+        except:
             continue
-    
-    if isProgressDialog:
-        progressDialog.close()
-        log_utils.log('Progress dialog closed', log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    log_utils.log('Total hosters added: %d' % len(items), log_utils.LOGINFO, SITE_IDENTIFIER)
+
+    progressDialog.close()
+
+    if not items:
+        return
+
     url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
-    log_utils.log('Container.Update URL: %s' % url, log_utils.LOGDEBUG, SITE_IDENTIFIER)
     execute('Container.Update(%s)' % url)
-    log_utils.log('========== getHosters END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
 
 
 def getHosterUrl(hUrl):
-    """Get real hoster URL after login"""
-    log_utils.log('========== getHosterUrl START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     if type(hUrl) == str:
         hUrl = eval(hUrl)
-    
-    log_utils.log('Input hUrl: %s' % str(hUrl), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    username = getSetting('serienstream.user')
-    password = getSetting('serienstream.pass')
-    
-    log_utils.log('Username: %s' % username, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    log_utils.log('Logging in to: %s' % URL_LOGIN, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    # Login
-    Handler = cRequestHandler(URL_LOGIN, caching=False)
-    Handler.addHeaderEntry('Upgrade-Insecure-Requests', '1')
-    Handler.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl'))
-    Handler.addParameters('email', username)
-    Handler.addParameters('password', password)
-    Handler.request()
-    log_utils.log('Login request completed', log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    # Get redirect URL
-    redirect_url = URL_MAIN + hUrl[0]
-    log_utils.log('Requesting redirect from: %s' % redirect_url, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    Request = cRequestHandler(redirect_url, caching=False)
-    Request.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl'))
+
+    Request = cRequestHandler(URL_MAIN + hUrl[0], caching=False)
+    Request.addHeaderEntry('Referer', params.getValue('entryUrl') or URL_MAIN)
     Request.addHeaderEntry('Upgrade-Insecure-Requests', '1')
     Request.request()
     sUrl = Request.getRealUrl()
-    
-    log_utils.log('Final stream URL: %s' % sUrl, log_utils.LOGINFO, SITE_IDENTIFIER)
-    log_utils.log('========== getHosterUrl END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
-    
+
+    if 'voe' in hUrl[1].lower():
+        if 'voe' in sUrl and 'voe.sx' not in sUrl:
+            from urllib.parse import urlparse
+            parsed = urlparse(sUrl)
+            sUrl = sUrl.replace(parsed.netloc, 'voe.sx')
+
     return [{'streamUrl': sUrl, 'resolved': False}]
 
 
 def showSearch():
-    """Show search dialog"""
-    log_utils.log('========== showSearch START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     try:
         from resources.lib.gui.gui import cGui
         sSearchText = cGui().showKeyBoard()
     except:
-        dialog = xbmcgui.Dialog()
-        sSearchText = dialog.input('Suche', type=xbmcgui.INPUT_ALPHANUM)
-    
-    log_utils.log('Search text: %s' % sSearchText, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    if not sSearchText:
-        log_utils.log('No search text entered', log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        return
-    
-    SSsearch(sSearchText, bGlobal=False)
-    log_utils.log('========== showSearch END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
+        sSearchText = xbmcgui.Dialog().input('Suche', type=xbmcgui.INPUT_ALPHANUM)
+
+    if sSearchText:
+        SSsearch(sSearchText)
 
 
 def _search(sSearchText):
-    """Search function for global search"""
-    log_utils.log('Global search called with: %s' % sSearchText, log_utils.LOGDEBUG, SITE_IDENTIFIER)
     SSsearch(sSearchText, bGlobal=True)
 
 
 def SSsearch(sSearchText=False, bGlobal=False):
-    """Main search function"""
-    log_utils.log('========== SSsearch START ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
-    log_utils.log('Search text: %s, Global: %s' % (sSearchText, bGlobal), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    params = ParameterHandler()
-    params.getValue('sSearchText')
-    
-    log_utils.log('Fetching series list from: %s' % URL_SERIES, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    oRequest = cRequestHandler(URL_SERIES, caching=True, ignoreErrors=True)
-    oRequest.addHeaderEntry('X-Requested-With', 'XMLHttpRequest')
-    oRequest.addHeaderEntry('Referer', REFERER + '/serien')
-    oRequest.addHeaderEntry('Origin', REFERER)
-    oRequest.addHeaderEntry('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-    oRequest.addHeaderEntry('Upgrade-Insecure-Requests', '1')
+    oRequest = cRequestHandler(URL_SEARCH + sSearchText, ignoreErrors=True)
     oRequest.cacheTime = 60 * 60 * 24
     sHtmlContent = oRequest.request()
-    
+
     if not sHtmlContent:
-        log_utils.log('No HTML content received', log_utils.LOGWARNING, SITE_IDENTIFIER)
         return
 
-    log_utils.log('HTML length: %d' % len(sHtmlContent), log_utils.LOGDEBUG, SITE_IDENTIFIER)
     sst = sSearchText.lower()
-    pattern = '<li><a data.+?href="([^"]+)".+?">(.*?)\<\/a><\/l'
-    
-    oParser = cParser()
-    aResult = oParser.parse(sHtmlContent, pattern)
 
-    if not aResult[0]:
-        log_utils.log('No search results found', log_utils.LOGWARNING, SITE_IDENTIFIER)
+    pattern = r'<a[^>]*href="([^"]+/serie/[^"]+)"[^>]*class="[^"]*show-cover[^"]*"[^>]*>.*?<h6[^>]*class="show-title[^"]*"[^>]*>([^<]+)</h6>'
+    isMatch, aResult = cParser.parse(sHtmlContent, pattern)
+
+    if not isMatch:
+        pattern = r'<a[^>]*href="([^"]+/serie/[^"]+)"[^>]*class="[^"]*show-cover[^"]*"[^>]*>.*?<img[^>]+alt="([^"]+)"'
+        isMatch, aResult = cParser.parse(sHtmlContent, pattern)
+
+    if not isMatch:
         return
 
-    log_utils.log('Total series in list: %d' % len(aResult[1]), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    total = len(aResult[1])
-    found = 0
-    
-    for link, title in aResult[1]:
-        if not sst in title.lower():
+    for sUrl, sName in aResult:
+        if not sst in sName.lower():
             continue
-        
-        found += 1
-        log_utils.log('Match #%d: %s' % (found, title), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        
-        try:
-            sThumbnail, sDescription = getMetaInfo(link, title)
-            log_utils.log('Got metadata for: %s' % title, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-            addDirectoryItem(title, 'runPlugin&site=%s&function=showSeasons&sThumbnail=%s&TVShowTitles=%s&sName=%s&Description=%s&sUrl=%s' % (SITE_NAME, URL_MAIN + sThumbnail, title, title, sDescription, URL_MAIN + link), sThumbnail, 'DefaultGenre.png')
-        except Exception as e:
-            log_utils.log('Could not get metadata for %s: %s' % (title, str(e)), log_utils.LOGWARNING, SITE_IDENTIFIER)
-            addDirectoryItem(title, 'runPlugin&site=%s&function=showSeasons&TVShowTitles=%s&sName=%s&sUrl=%s' % (SITE_NAME, title, title, URL_MAIN + link), SITE_ICON, 'DefaultGenre.png')
-    
-    log_utils.log('Search results: %d matches found' % found, log_utils.LOGINFO, SITE_IDENTIFIER)
+
+        sUrl = sUrl if sUrl.startswith('http') else URL_MAIN + sUrl
+        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sUrl=%s' % (SITE_NAME, sName, sUrl), SITE_ICON, 'DefaultGenre.png')
+
     setEndOfDirectory()
-    log_utils.log('========== SSsearch END ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
 
-
-def getMetaInfo(link, title):
-    """Get metadata for series"""
-    log_utils.log('Getting metadata for: %s (Link: %s)' % (title, link), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    
-    oRequest = cRequestHandler(URL_MAIN + link, caching=False)
-    oRequest.addHeaderEntry('X-Requested-With', 'XMLHttpRequest')
-    oRequest.addHeaderEntry('Referer', REFERER + '/serien')
-    oRequest.addHeaderEntry('Origin', REFERER)
-
-    sHtmlContent = oRequest.request()
-    if not sHtmlContent:
-        log_utils.log('No HTML content for metadata', log_utils.LOGWARNING, SITE_IDENTIFIER)
-        return '', ''
-
-    log_utils.log('Metadata HTML length: %d' % len(sHtmlContent), log_utils.LOGDEBUG, SITE_IDENTIFIER)
-    pattern = 'seriesCoverBox">.*?data-src="([^"]+).*?data-full-description="([^"]+)"'
-    
-    oParser = cParser()
-    aResult = oParser.parse(sHtmlContent, pattern)
-
-    if not aResult[0]:
-        log_utils.log('No metadata found in HTML', log_utils.LOGWARNING, SITE_IDENTIFIER)
-        return '', ''
-
-    for sImg, sDescr in aResult[1]:
-        log_utils.log('Metadata found - Thumbnail: %s' % sImg, log_utils.LOGDEBUG, SITE_IDENTIFIER)
-        return sImg, sDescr
-    
-    return '', ''
