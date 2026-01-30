@@ -14,3 +14,6 @@ params = ParameterHandler()
 SITE_IDENTIFIER = 'filmpro'
 SITE_NAME = 'Filmpro Filme'
 SITE_ICON = 'filmpro.png'
+import xbmcgui
+def load():
+    xbmcgui.Dialog().notification('xStreamV2','Noch nicht im xStream V2 verfügbar')
