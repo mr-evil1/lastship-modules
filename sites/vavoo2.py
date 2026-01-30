@@ -14,3 +14,6 @@ params = ParameterHandler()
 SITE_IDENTIFIER = 'vavoo2'
 SITE_NAME = 'Vavoo2'
 SITE_ICON = 'vavoo2.png'
+import xbmcgui
+def load():
+    xbmcgui.Dialog().notification('xStreamV2','Noch nicht im xStream V2 verfügbar')
