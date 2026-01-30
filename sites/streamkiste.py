@@ -25,3 +25,6 @@ SITE_NAME = 'Streamkiste'
 SITE_ICON = 'streamkiste.png'
 
 DOMAIN = getSetting('plugin_'+ SITE_IDENTIFIER +'.domain', 'streamkiste.taxi')
+import xbmcgui
+def load():
+    xbmcgui.Dialog().notification('xStreamV2','Noch nicht im xStream V2 verfügbar')
