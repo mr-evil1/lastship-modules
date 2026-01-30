@@ -17,3 +17,4 @@ SITE_ICON = 'vixstream.png'
 
 #DOMAIN = getSetting('plugin_'+ SITE_IDENTIFIER +'.domain', 'vixsrc.to')
 #URL_MAIN = 'https://' + DOMAIN
+def load():pass
