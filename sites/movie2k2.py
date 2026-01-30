@@ -17,3 +17,6 @@ params = ParameterHandler()
 SITE_IDENTIFIER = 'movie2k2'
 SITE_NAME = 'Movie2K2'
 SITE_ICON = 'movie2k2.png'
+import xbmcgui
+def load():
+    xbmcgui.Dialog().notification('xStreamV2','Noch nicht im xStream V2 verfügbar')
