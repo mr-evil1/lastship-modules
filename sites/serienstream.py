@@ -7,6 +7,11 @@ from resources.lib.control import progressDialog, quote_plus, unescape, quote, e
 from resources.lib.indexers.navigatorXS import navigator
 from resources.lib.utils import isBlockedHoster
 from resources.lib import log_utils
+import requests
+session = requests.Session()
+session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+})
 
 oNavigator = navigator()
 addDirectoryItem = oNavigator.addDirectoryItem
@@ -997,22 +1002,31 @@ def getHosters():
 
 
 def getHosterUrl(hUrl):
-    if type(hUrl) == str:
+    if isinstance(hUrl, str):
         hUrl = eval(hUrl)
 
-    Request = cRequestHandler(URL_MAIN + hUrl[0], caching=False)
-    Request.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl') or URL_MAIN)
-    Request.addHeaderEntry('Upgrade-Insecure-Requests', '1')
-    Request.request()
-    sUrl = Request.getRealUrl()
+    target_url = URL_MAIN + hUrl[0]
+    referer = ParameterHandler().getValue('entryUrl') or URL_MAIN
+
+    headers = {
+        'Referer': referer,
+        'Upgrade-Insecure-Requests': '1'
+    }
+    
+    try:
+        response = session.get(target_url, headers=headers, timeout=10)
+        sUrl = response.url  
+    except:
+        sUrl = target_url
+    
 
     if 'voe' in hUrl[1].lower():
         if 'voe' in sUrl and 'voe.sx' not in sUrl:
-            from urllib.parse import urlparse
             parsed = urlparse(sUrl)
             sUrl = sUrl.replace(parsed.netloc, 'voe.sx')
 
     return [{'streamUrl': sUrl, 'resolved': False}]
+
 
 
 def showSearch():
