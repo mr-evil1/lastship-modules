@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-02-18T20:03:38Z",
+  "last_update": "2026-02-18T20:04:42Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -120,6 +120,13 @@
       "version": "1.0",
       "enabled": true,
       "description": "Serienstream-alt Scraper",
+      "last_modified": "2026-02-18"
+    },
+    {
+      "name": "serienstream",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Serienstream Scraper",
       "last_modified": "2026-02-18"
     },
     {
