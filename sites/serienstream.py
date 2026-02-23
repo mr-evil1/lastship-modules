@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json, sys, xbmcgui, re, random
 from resources.lib.ParameterHandler import ParameterHandler
 from resources.lib.requestHandler import cRequestHandler
@@ -9,13 +8,11 @@ from resources.lib.utils import isBlockedHoster
 from resources.lib import log_utils
 import requests
 
-# --- Diese vier Konstanten MÜSSEN auf Modul-Ebene stehen (PluginHandler liest sie beim Import) ---
 SITE_IDENTIFIER = 'serienstream'
 SITE_NAME = 'SerienStream'
 SITE_ICON = 'serienstream.png'
 SITE_GLOBAL_SEARCH = True
 
-# --- Alles andere wird lazy initialisiert (erst beim ersten Funktionsaufruf) ---
 _session = None
 _oNavigator = None
 _addDirectoryItem = None
@@ -24,7 +21,6 @@ _xsDirectory = None
 _HOMEPAGE_CACHE = None
 _POPULAR_CACHE = None
 
-# URL-Variablen (werden durch _init() gesetzt)
 URL_MAIN = None
 URL_HOME = None
 URL_SERIES = None
@@ -34,7 +30,6 @@ URL_POPULAR = None
 URL_LOGIN = None
 URL_SEARCH = None
 URL_SEARCH_API = None
-
 
 def _init():
     """Lazy-Initialisierung - läuft beim ersten echten Aufruf, NICHT beim Import."""
@@ -68,14 +63,12 @@ def _init():
     URL_SEARCH       = URL_MAIN + '/suche?term='
     URL_SEARCH_API   = URL_MAIN + '/api/search/suggest?term='
 
-
 def _norm_search_text(value):
     value = (value or '').lower()
     value = re.sub(r'\([^)]*\)', '', value)   
     value = re.sub(r'[^a-z0-9]+', ' ', value)
     value = re.sub(r'\s+', ' ', value).strip()
     return value
-
 
 def _search_title_match(query, title):
     q_words = _norm_search_text(query).split()
@@ -96,7 +89,6 @@ def _abs_url(url):
         return url
     return URL_MAIN + url if url.startswith('/') else URL_MAIN + '/' + url
 
-
 def _normalize_series_root(url):
     if not url:
         return ''
@@ -104,8 +96,6 @@ def _normalize_series_root(url):
     full = re.sub(r'/staffel-\d+(?:/.*)?$', '', full)
     full = re.sub(r'/episode-\d+(?:/.*)?$', '', full)
     return full
-
-
 
 def load():
     _init()
@@ -139,7 +129,7 @@ def _getHomepage(force=False):
         oRequest = cRequestHandler(URL_HOME, ignoreErrors=True, caching=(not force))
         
         if not force:
-            oRequest.cacheTime = 60 * 30  # 30 Minuten
+            oRequest.cacheTime = 60 * 30              
         sContent = oRequest.request()
         
         if isinstance(sContent, bytes):
@@ -155,7 +145,6 @@ def _getHomepage(force=False):
 
     return _HOMEPAGE_CACHE
 
-
 def _getPopular():
     _init()
     global _POPULAR_CACHE
@@ -163,7 +152,7 @@ def _getPopular():
     if _POPULAR_CACHE is None:
         log_utils.log('Loading popular page for first time', log_utils.LOGINFO, SITE_IDENTIFIER)
         oRequest = cRequestHandler(URL_POPULAR, ignoreErrors=True)
-        oRequest.cacheTime = 60 * 30  # 30 Minuten
+        oRequest.cacheTime = 60 * 30              
         sContent = oRequest.request()
         
         if isinstance(sContent, bytes):
@@ -188,7 +177,7 @@ def allSeries():
     sCont = params.getValue('sCont')
     
     oRequest = cRequestHandler(sUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 24  # 24 Stunden Cache
+    oRequest.cacheTime = 60 * 60 * 24                    
     sHtmlContent = oRequest.request()
     
     if isinstance(sHtmlContent, bytes):
@@ -244,8 +233,6 @@ def allSeries():
     
     _setEndOfDirectory()
 
-
-
 def showNewEpisodes(entryUrl=False):
     _init()
     log_utils.log('========== showNewEpisodes ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
@@ -257,7 +244,7 @@ def showNewEpisodes(entryUrl=False):
         entryUrl = URL_HOME
     
     oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 4  # 4 Stunden Cache
+    oRequest.cacheTime = 60 * 60 * 4                   
     sHtmlContent = oRequest.request()
     
     if isinstance(sHtmlContent, bytes):
@@ -318,8 +305,6 @@ def showNewEpisodes(entryUrl=False):
 
     _setEndOfDirectory()
 
-
-
 def showAngesagt():
     _init()
     log_utils.log('========== showAngesagt ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
@@ -329,7 +314,6 @@ def showAngesagt():
         return
     series = _parseSimple(sHtmlContent)
     _displaySeries(series)
-
 
 def showNeu():
     _init()
@@ -347,24 +331,20 @@ def showNeu():
         log_utils.log('showNeu: No series found after retry', log_utils.LOGERROR, SITE_IDENTIFIER)
         xbmcgui.Dialog().ok('Info', 'Keine Serien gefunden')
 
-
 def showGeheimtipps():
     _init()
     log_utils.log('========== showGeheimtipps ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     _showFromHeading('Geheimtipps')
-
 
 def showSuchtgefahr():
     _init()
     log_utils.log('========== showSuchtgefahr ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     _showFromHeading('Suchtgefahr')
 
-
 def showBeliebtesten():
     _init()
     log_utils.log('========== showBeliebtesten ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     _showFromHeading('Die Beliebtesten')
-
 
 def showAktuell():
     _init()
@@ -375,7 +355,6 @@ def showAktuell():
         return
     series = _parseSimple(sHtmlContent)
     _displaySeries(series[::2])
-
 
 def _showFromHeading(heading_text):
     _init()
@@ -393,7 +372,6 @@ def _showFromHeading(heading_text):
         log_utils.log('No section found for heading: %s' % heading_text, log_utils.LOGERROR, SITE_IDENTIFIER)
         xbmcgui.Dialog().ok('Info', 'Keine Serien gefunden für: %s' % heading_text)
 
-
 def _parseNeuContent(sHtmlContent):
     if not sHtmlContent: 
         return []
@@ -407,7 +385,6 @@ def _parseNeuContent(sHtmlContent):
     if isMatch and section:
         return _parseNeu(section)
     return []
-
 
 def _parseHeadingContent(sHtmlContent, heading_text):
     if not sHtmlContent: return []
@@ -430,7 +407,6 @@ def _parseHeadingContent(sHtmlContent, heading_text):
     if section:
         return _parseList(section)
     return []
-
 
 def _extractThumbnail(html_content):
     patterns = [
@@ -496,7 +472,6 @@ def _parseSimple(sHtmlContent):
 
     return aResult
 
-
 def _parseNeu(section_content):
     aResult = []
     
@@ -537,7 +512,6 @@ def _parseNeu(section_content):
                     aResult.append((url, title.strip(), thumb))
 
     return aResult
-
 
 def _parseList(section_content):
     aResult = []
@@ -584,7 +558,6 @@ def _parseList(section_content):
                     aResult.append((url, title.strip(), thumb))
 
     return aResult
-
 
 def _displaySeries(series_list):
     _init()
@@ -711,7 +684,6 @@ def showAllSeries(entryUrl=False, sSearchText=False):
         _addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
 
     _setEndOfDirectory()
-
 
 def showEntries(entryUrl=False):
     _init()
@@ -846,9 +818,6 @@ def showEntries(entryUrl=False):
 
     _setEndOfDirectory()
 
-
-
-
 def showSeasons():
     _init()
     params = ParameterHandler()
@@ -900,7 +869,6 @@ def showSeasons():
         _addDirectoryItem(sName, 'runPlugin&site=%s&function=showEpisodes&TVShowTitle=%s&sThumbnail=%s&sSeason=%s&sUrl=%s' % (SITE_NAME, quote_plus(sTVShowTitle), sThumbnail, sNr, sSeasonUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
 
     _setEndOfDirectory()
-
 
 def showEpisodes():
     _init()
@@ -958,8 +926,6 @@ def showEpisodes():
 
     _xsDirectory(items, SITE_NAME)
     _setEndOfDirectory()
-
-
 
 def getHosters():
     _init()
@@ -1040,7 +1006,6 @@ def getHosters():
     url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
     execute('Container.Update(%s)' % url)
 
-
 def getHosterUrl(hUrl):
     _init()
     if isinstance(hUrl, str):
@@ -1068,8 +1033,6 @@ def getHosterUrl(hUrl):
 
     return [{'streamUrl': sUrl, 'resolved': False}]
 
-
-
 def showSearch():
     _init()
     try:
@@ -1081,11 +1044,9 @@ def showSearch():
     if sSearchText:
         SSsearch(sSearchText)
 
-
 def _search(sSearchText):
     _init()
     SSsearch(sSearchText, bGlobal=True)
-
 
 def SSsearch(sSearchText=False, bGlobal=False):
     _init()
@@ -1162,7 +1123,6 @@ def SSsearch(sSearchText=False, bGlobal=False):
         )
 
     _setEndOfDirectory()
-
 
 def getMetaInfo(link, title):
     _init()
