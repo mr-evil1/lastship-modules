@@ -32,7 +32,7 @@ URL_SEARCH = None
 URL_SEARCH_API = None
 
 def _init():
-    """Lazy-Initialisierung - läuft beim ersten echten Aufruf, NICHT beim Import."""
+
     global _session, _oNavigator, _addDirectoryItem, _setEndOfDirectory, _xsDirectory
     global URL_MAIN, URL_HOME, URL_SERIES, URL_NEW_SERIES, URL_NEW_EPISODES
     global URL_POPULAR, URL_LOGIN, URL_SEARCH, URL_SEARCH_API
@@ -65,7 +65,7 @@ def _init():
 
 def _norm_search_text(value):
     value = (value or '').lower()
-    value = re.sub(r'\([^)]*\)', '', value)   
+    value = re.sub(r'\([^)]*\)', '', value)
     value = re.sub(r'[^a-z0-9]+', ' ', value)
     value = re.sub(r'\s+', ' ', value).strip()
     return value
@@ -76,7 +76,7 @@ def _search_title_match(query, title):
         return False
 
     title_norm = _norm_search_text(title)
-    
+
     for w in q_words:
         if w not in title_norm:
             return False
@@ -127,11 +127,11 @@ def _getHomepage(force=False):
     if _HOMEPAGE_CACHE is None or force:
         log_utils.log('Loading homepage (Force: %s)' % str(force), log_utils.LOGINFO, SITE_IDENTIFIER)
         oRequest = cRequestHandler(URL_HOME, ignoreErrors=True, caching=(not force))
-        
+
         if not force:
-            oRequest.cacheTime = 60 * 30              
+            oRequest.cacheTime = 60 * 30
         sContent = oRequest.request()
-        
+
         if isinstance(sContent, bytes):
             try:
                 sContent = sContent.decode('utf-8')
@@ -152,40 +152,39 @@ def _getPopular():
     if _POPULAR_CACHE is None:
         log_utils.log('Loading popular page for first time', log_utils.LOGINFO, SITE_IDENTIFIER)
         oRequest = cRequestHandler(URL_POPULAR, ignoreErrors=True)
-        oRequest.cacheTime = 60 * 30              
+        oRequest.cacheTime = 60 * 30
         sContent = oRequest.request()
-        
+
         if isinstance(sContent, bytes):
             try:
                 sContent = sContent.decode('utf-8')
             except:
                 sContent = str(sContent)
-                
+
         _POPULAR_CACHE = sContent
         log_utils.log('Popular loaded: %d characters' % len(_POPULAR_CACHE) if _POPULAR_CACHE else 0, log_utils.LOGINFO, SITE_IDENTIFIER)
     else:
         log_utils.log('Using cached popular page', log_utils.LOGINFO, SITE_IDENTIFIER)
 
     return _POPULAR_CACHE
-    
-    
+
 def allSeries():
     _init()
     log_utils.log('========== allSeries ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
     sUrl = params.getValue('sUrl')
     sCont = params.getValue('sCont')
-    
+
     oRequest = cRequestHandler(sUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 24                    
+    oRequest.cacheTime = 60 * 60 * 24
     sHtmlContent = oRequest.request()
-    
+
     if isinstance(sHtmlContent, bytes):
         try:
             sHtmlContent = sHtmlContent.decode('utf-8')
         except:
             sHtmlContent = str(sHtmlContent)
-    
+
     isMatch = False
     aResult = []
 
@@ -204,7 +203,7 @@ def allSeries():
                 sHtmlContent,
                 r'<a[^>]*href="([^*]katalog[^"]*)"[^>]*>\s*([A-Z0-9#-]+)\s*</a>'
             )
-            
+
     if not isMatch and sCont == 'homeContentGenresList':
         isMatch, aResult = cParser.parse(
             sHtmlContent,
@@ -225,35 +224,34 @@ def allSeries():
     for sEntryUrl, sName in aResult:
         sName = sName.strip() if isinstance(sName, str) else str(sName).strip()
         sEntryUrl = _abs_url(sEntryUrl)
-        
+
         if sCont == 'homeContentGenresList':
             _addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s&sGenre=%s' % (SITE_NAME, sEntryUrl, quote_plus(sName)), SITE_ICON, 'DefaultMovies.png')
         else:
             _addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sEntryUrl), SITE_ICON, 'DefaultMovies.png')
-    
+
     _setEndOfDirectory()
 
 def showNewEpisodes(entryUrl=False):
     _init()
     log_utils.log('========== showNewEpisodes ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
-    
+
     if not entryUrl:
         entryUrl = params.getValue('sUrl')
     if not entryUrl:
         entryUrl = URL_HOME
-    
+
     oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 4                   
+    oRequest.cacheTime = 60 * 60 * 4
     sHtmlContent = oRequest.request()
-    
+
     if isinstance(sHtmlContent, bytes):
         try:
             sHtmlContent = sHtmlContent.decode('utf-8')
         except:
             sHtmlContent = str(sHtmlContent)
-    
-    
+
     thumbMap = {}
     thumb_pattern = r'<a[^>]*href="([^"]*/serie/([^"/]+))"[^>]*>[\s\S]*?<img[^>]*(?:data-src|src)="([^"]+)"'
     isThumb, thumbResults = cParser.parse(sHtmlContent, thumb_pattern)
@@ -283,20 +281,20 @@ def showNewEpisodes(entryUrl=False):
         if fullUrl in seen:
             continue
         seen.add(fullUrl)
-        
+
         seriesUrl = re.sub(r'/staffel-\d+/episode-\d+$', '', fullUrl)
         displayTitle = sName.strip()
-        
+
         try:
             seasonNo = int(sSeason)
             episodeNo = int(sEpisode)
         except Exception:
             seasonNo = 0
             episodeNo = 0
-        
+
         if seasonNo > 0 and episodeNo > 0:
             displayTitle = '%s - S%02dE%02d' % (displayTitle, seasonNo, episodeNo)
-            
+
         sThumbnail = thumbMap.get(sSeriesSlug, '')
         if not sThumbnail:
             sThumbnail = URL_MAIN + '/media/images/channel/thumb/' + sSeriesSlug + '?format=jpg'
@@ -373,7 +371,7 @@ def _showFromHeading(heading_text):
         xbmcgui.Dialog().ok('Info', 'Keine Serien gefunden für: %s' % heading_text)
 
 def _parseNeuContent(sHtmlContent):
-    if not sHtmlContent: 
+    if not sHtmlContent:
         return []
     pattern = 'id="section-1"[^>]*>(.*?)<div[^>]*id="section-'
     isMatch, section = cParser.parseSingleResult(sHtmlContent, pattern)
@@ -416,7 +414,7 @@ def _extractThumbnail(html_content):
         r'<img[^>]*src="((?:https?://[^"]+)?/media/[^"]+)"',
         r'<img[^>]*src="(https?://[^"]+/media/[^"]+)"',
     ]
-    
+
     for pattern in patterns:
         match = re.search(pattern, html_content, re.IGNORECASE | re.DOTALL)
         if match:
@@ -425,16 +423,16 @@ def _extractThumbnail(html_content):
             if thumb.startswith('data:'):
                 continue
             return thumb
-    
+
     return ''
 
 def _parseSimple(sHtmlContent):
-    """Parst Serien mit show-card Struktur"""
+
     aResult = []
-    
+
     card_pattern = r'<a\s+href="([^"]*)"[^>]*class="[^"]*show-card[^"]*"[^>]*>(.*?)</a>'
     isMatch, cards = cParser.parse(sHtmlContent, card_pattern)
-    
+
     if isMatch:
         for url, card_content in cards:
             if '/serie/' not in url:
@@ -446,7 +444,7 @@ def _parseSimple(sHtmlContent):
             thumb = _extractThumbnail(card_content)
             if url and title and url not in [x[0] for x in aResult]:
                 aResult.append((url, title.strip(), thumb))
-                
+
     if not aResult:
         card_pattern2 = r'<a[^>]*class="[^"]*show-card[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)</a>'
         isMatch, cards = cParser.parse(sHtmlContent, card_pattern2)
@@ -461,7 +459,7 @@ def _parseSimple(sHtmlContent):
                 thumb = _extractThumbnail(card_content)
                 if url and title and url not in [x[0] for x in aResult]:
                     aResult.append((url, title.strip(), thumb))
-                    
+
     if not aResult:
         pattern = r'<a[^>]*href="([^"]*serie/[^"]+)"[^>]*>.*?<img[^>]+(?:data-src|src)="([^"]+)"[^>]*alt="([^"]+)"'
         isMatch, results = cParser.parse(sHtmlContent, pattern)
@@ -474,17 +472,17 @@ def _parseSimple(sHtmlContent):
 
 def _parseNeu(section_content):
     aResult = []
-    
+
     col_pattern = r'<div[^>]*class="col[^"]*"[^>]*>(.*?)</div>\s*(?=<div[^>]*class="col|$)'
     isMatch, cols = cParser.parse(section_content, col_pattern)
-    
+
     if isMatch:
         for col_content in cols:
             url_match = re.search(r'href="([^"]*serie/[^"]+)"', col_content)
             if not url_match:
                 continue
             url = url_match.group(1)
-            
+
             title = ''
             title_match = re.search(r'alt="([^"]+)"', col_content)
             if title_match:
@@ -497,12 +495,12 @@ def _parseNeu(section_content):
                     title_match = re.search(r'<h6[^>]*>.*?<a[^>]*>([^<]+)</a>', col_content, re.DOTALL)
                     if title_match:
                         title = title_match.group(1)
-            
+
             thumb = _extractThumbnail(col_content)
-            
+
             if url and title and url not in [x[0] for x in aResult]:
                 aResult.append((url, title.strip(), thumb))
-                
+
     if not aResult:
         pattern = r'<a href="(/serie/[^"]+)"[^>]*>.*?<img[^>]+(?:data-src|src)="([^"]+)"[^>]*>.*?<h3[^>]*>\s*<span>([^<]+)</span>'
         isMatch, results = cParser.parse(section_content, pattern)
@@ -515,7 +513,7 @@ def _parseNeu(section_content):
 
 def _parseList(section_content):
     aResult = []
-    
+
     li_pattern = r'<li[^>]*class="[^"]*d-flex[^"]*"[^>]*>(.*?)</li>'
     isMatch, li_items = cParser.parse(section_content, li_pattern)
 
@@ -527,7 +525,7 @@ def _parseList(section_content):
             if not url_match:
                 continue
             sUrl = url_match.group(1)
-            
+
             sTitle = ''
             title_match = re.search(r'<span[^>]*class="[^"]*d-block[^"]*fw-semibold[^"]*"[^>]*>([^<]+)</span>', li_content)
             if title_match:
@@ -540,15 +538,15 @@ def _parseList(section_content):
                     title_match = re.search(r'title="([^"]+)"', li_content)
                     if title_match:
                         sTitle = title_match.group(1)
-            
+
             if not sTitle:
                 continue
-                
+
             sThumbnail = _extractThumbnail(li_content)
 
             if sUrl not in [x[0] for x in aResult]:
                 aResult.append((sUrl, sTitle.strip(), sThumbnail))
-                
+
     if not aResult:
         simple_pattern = r'<li[^>]*>.*?<a[^>]*href="([^"]*serie/[^"]+)"[^>]*>.*?<img[^>]*(?:data-src|src)="([^"]+)"[^>]*alt="([^"]+)"'
         isMatch, results = cParser.parse(section_content, simple_pattern)
@@ -592,7 +590,7 @@ def showAllSeries(entryUrl=False, sSearchText=False):
     oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
     oRequest.cacheTime = 60 * 60 * 24
     sHtmlContent = oRequest.request()
-    
+
     if isinstance(sHtmlContent, bytes):
         try:
             sHtmlContent = sHtmlContent.decode('utf-8')
@@ -600,17 +598,17 @@ def showAllSeries(entryUrl=False, sSearchText=False):
             sHtmlContent = str(sHtmlContent)
 
     aResult = []
-    
+
     card_mini_pattern = r'<div[^>]*class="[^"]*card-mini[^"]*"[^>]*>(.*?)</div>\s*</div>'
     isMatch, cards = cParser.parse(sHtmlContent, card_mini_pattern)
-    
+
     if isMatch:
         for card_content in cards:
             url_match = re.search(r'href="([^"]*serie/[^"]+)"', card_content)
             if not url_match:
                 continue
             url = url_match.group(1)
-            
+
             title_match = re.search(r'<h6[^>]*>([^<]+)</h6>', card_content)
             if not title_match:
                 title_match = re.search(r'alt="([^"]+)"', card_content)
@@ -619,16 +617,16 @@ def showAllSeries(entryUrl=False, sSearchText=False):
             title = title_match.group(1).strip()
             if title.endswith(' backdrop'):
                 title = title[:-9]
-            
+
             thumb = _extractThumbnail(card_content)
-            
+
             if url and title and url not in [x[0] for x in aResult]:
                 aResult.append((url, title, thumb))
-                
+
     if not aResult:
         card_pattern = r'<a\s+href="([^"]*)"[^>]*class="[^"]*show-card[^"]*"[^>]*>(.*?)</a>'
         isMatch, cards = cParser.parse(sHtmlContent, card_pattern)
-        
+
         if isMatch:
             for url, card_content in cards:
                 if '/serie/' not in url:
@@ -640,7 +638,7 @@ def showAllSeries(entryUrl=False, sSearchText=False):
                 thumb = _extractThumbnail(card_content)
                 if url and title and url not in [x[0] for x in aResult]:
                     aResult.append((url, title.strip(), thumb))
-                    
+
     if not aResult:
         pattern = r'<a[^>]*href="([^"]+/serie/[^"]+)"[^>]*>.*?<img[^>]+(?:data-src|src)="([^"]+)"[^>]+alt="([^"]+)"'
         isMatch, result = cParser.parse(sHtmlContent, pattern)
@@ -691,13 +689,13 @@ def showEntries(entryUrl=False):
     params = ParameterHandler()
     if not entryUrl:
         entryUrl = params.getValue('sUrl')
-    
+
     sGenre = params.getValue('sGenre')
 
     oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
     oRequest.cacheTime = 60 * 60 * 6
     sHtmlContent = oRequest.request()
-    
+
     if isinstance(sHtmlContent, bytes):
         try:
             sHtmlContent = sHtmlContent.decode('utf-8')
@@ -706,7 +704,7 @@ def showEntries(entryUrl=False):
 
     aResult = []
     isMatch = False
-    
+
     if sGenre:
         escaped = re.escape(sGenre)
         isBlock, sContainer = cParser.parseSingleResult(
@@ -718,13 +716,13 @@ def showEntries(entryUrl=False):
                 sContainer,
                 r'<a[^>]*href="([^"]*/serie/[^"]+)"[^>]*>\s*([^<]+)\s*</a>'
             )
-            
+
     if not isMatch:
         isMatch, aResult = cParser.parse(
             sHtmlContent,
             r'<li[^>]*class="[^"]*series-item[^"]*"[^>]*>\s*<a[^>]*href="([^"]*/serie/[^"]+)"[^>]*>([^<]+)</a>'
         )
-        
+
     if not isMatch:
         card_pattern = r'<a\s+href="([^"]*)"[^>]*class="[^"]*show-card[^"]*"[^>]*>(.*?)</a>'
         isMatch, cards = cParser.parse(sHtmlContent, card_pattern)
@@ -739,7 +737,7 @@ def showEntries(entryUrl=False):
                 thumb = _extractThumbnail(card_content)
                 if url and title and url not in [x[0] for x in aResult]:
                     aResult.append((url, title.strip(), thumb))
-                    
+
     if not aResult:
         card_pattern2 = r'<a[^>]*class="[^"]*show-card[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)</a>'
         isMatch, cards = cParser.parse(sHtmlContent, card_pattern2)
@@ -752,13 +750,13 @@ def showEntries(entryUrl=False):
                 thumb = _extractThumbnail(card_content)
                 if url and title and url not in [x[0] for x in aResult]:
                     aResult.append((url, title.strip(), thumb))
-                    
+
     if not aResult:
         isMatch, aResult = cParser.parse(
             sHtmlContent,
             r'<a[^>]*href="([^"]*/serie/[^"]+)"[^>]*class="[^"]*show-cover[^"]*"[^>]*>[\s\S]*?<img[^>]+alt="([^"]+)"'
         )
-        
+
     if not aResult:
         pattern = r'<a[^>]*href="([^"]+/serie/[^"]+)"[^>]*>.*?<img[^>]+(?:data-src|src)="([^"]+)"[^>]+alt="([^"]+)"'
         isMatch, result = cParser.parse(sHtmlContent, pattern)
@@ -771,7 +769,6 @@ def showEntries(entryUrl=False):
         log_utils.log('showEntries: No entries found', log_utils.LOGWARNING, SITE_IDENTIFIER)
         return
 
-    
     thumbMap = {}
     if 'show-card' in sHtmlContent or 'show-cover' in sHtmlContent:
         isThumb, thumbResult = cParser.parse(
@@ -783,7 +780,7 @@ def showEntries(entryUrl=False):
                 key = _normalize_series_root(tUrl)
                 if key and key not in thumbMap:
                     thumbMap[key] = _abs_url(tImg)
-                    
+
     seen = set()
     for item in aResult:
         if len(item) == 2:
@@ -791,25 +788,25 @@ def showEntries(entryUrl=False):
             sThumbnail = ''
         else:
             sUrl, sName, sThumbnail = item[0], item[1], item[2] if len(item) > 2 else ''
-        
+
         sUrl = sUrl.strip()
         sName = sName.strip() if isinstance(sName, str) else str(sName).strip()
-        
+
         if not sUrl or not sName:
             continue
-        
+
         fullUrl = _normalize_series_root(sUrl)
         if '/serie/' not in fullUrl:
             continue
-        
+
         key = (fullUrl.lower(), sName.lower())
         if key in seen:
             continue
         seen.add(key)
-        
+
         if not sThumbnail:
             sThumbnail = thumbMap.get(fullUrl, '')
-        
+
         sUrl = _abs_url(sUrl)
         if sThumbnail and not sThumbnail.startswith('http'):
             sThumbnail = _abs_url(sThumbnail)
@@ -827,7 +824,7 @@ def showSeasons():
 
     oRequest = cRequestHandler(sUrl)
     sHtmlContent = oRequest.request()
-    
+
     if isinstance(sHtmlContent, bytes):
         try:
             sHtmlContent = sHtmlContent.decode('utf-8')
@@ -841,8 +838,12 @@ def showSeasons():
         return
 
     isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, r'<div[^>]*class="series-description"[^>]*>.*?<span[^>]*class="description-text">([^<]+)</span>')
-    
-    
+    if not isDesc or not sDesc:
+        meta_match = re.search(r'name="description"\s+content="([^"]+)"', sHtmlContent)
+        if meta_match:
+            isDesc = True
+            sDesc = unescape(meta_match.group(1)).strip()
+
     sThumbnail = ''
     thumb_patterns = [
         r'show-cover-mobile[\s\S]*?<img[^>]*(?:data-src|src)="([^"]+)"',
@@ -852,19 +853,20 @@ def showSeasons():
         r'<img[^>]*src="([^"]+)"[^>]*class="[^"]*img-fluid[^"]*w-100[^"]*"',
         r'<picture[^>]*>.*?<img[^>]*(?:data-)?src="([^"]+)"',
     ]
-    
+
     for pattern in thumb_patterns:
         thumb_match = re.search(pattern, sHtmlContent, re.DOTALL)
         if thumb_match:
             sThumbnail = thumb_match.group(1)
             sThumbnail = _abs_url(sThumbnail)
+            sThumbnail = sThumbnail.replace('format=webp', 'format=jpg').replace('format=avif', 'format=jpg')
             break
-    
+
     if not sThumbnail and sThumbnailFromList:
         sThumbnail = sThumbnailFromList
 
     for sSeasonUrl, sNr, _ in aResult:
-        sName = 'Staffel %s' % sNr
+        sName = 'Specials' if sNr == '0' else 'Staffel %s' % sNr
         sSeasonUrl = _abs_url(sSeasonUrl)
         _addDirectoryItem(sName, 'runPlugin&site=%s&function=showEpisodes&TVShowTitle=%s&sThumbnail=%s&sSeason=%s&sUrl=%s' % (SITE_NAME, quote_plus(sTVShowTitle), sThumbnail, sNr, sSeasonUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
 
@@ -883,7 +885,7 @@ def showEpisodes():
     oRequest = cRequestHandler(sUrl)
     oRequest.cacheTime = 60 * 60 * 4
     sHtmlContent = oRequest.request()
-    
+
     if isinstance(sHtmlContent, bytes):
         try:
             sHtmlContent = sHtmlContent.decode('utf-8')
@@ -898,6 +900,11 @@ def showEpisodes():
 
     items = []
     isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, r'<div[^>]*class="series-description"[^>]*>.*?<span[^>]*class="description-text">([^<]+)</span>')
+    if not isDesc or not sDesc:
+        meta_match = re.search(r'name="description"\s+content="([^"]+)"', sHtmlContent)
+        if meta_match:
+            isDesc = True
+            sDesc = unescape(meta_match.group(1)).strip()
 
     for sUrl2, sID, sNameGer, sNameEng in aResult:
         sName = '%d - ' % int(sID)
@@ -931,7 +938,7 @@ def getHosters():
     _init()
     log_utils.log('========== getHosters ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
-    
+
     metaStr = params.getValue('meta')
     if metaStr:
         try:
@@ -949,7 +956,7 @@ def getHosters():
 
     oRequest = cRequestHandler(sUrl, caching=False)
     sHtmlContent = oRequest.request()
-    
+
     if isinstance(sHtmlContent, bytes):
         try:
             sHtmlContent = sHtmlContent.decode('utf-8')
@@ -969,10 +976,10 @@ def getHosters():
     sLanguage = getSetting('prefLanguage', '0')
     t = 0
 
+    LANG_FILTER_MAP = {'1': '1', '2': '2', '3': '4'}
+
     for sHosterUrl, sName, sLang in aResult:
-        if sLanguage == '1' and sLang != '1':
-            continue
-        elif sLanguage == '2' and sLang != '2':
+        if sLanguage in LANG_FILTER_MAP and sLang != LANG_FILTER_MAP[sLanguage]:
             continue
 
         if sLang == '1':
@@ -981,6 +988,8 @@ def getHosters():
             sLangLabel = ' (EN)'
         elif sLang == '3':
             sLangLabel = ' (EN/DE-Sub)'
+        elif sLang == '4':
+            sLangLabel = ' (JP)'
         else:
             sLangLabel = ''
 
@@ -1018,13 +1027,12 @@ def getHosterUrl(hUrl):
         'Referer': referer,
         'Upgrade-Insecure-Requests': '1'
     }
-    
+
     try:
         response = _session.get(target_url, headers=headers, timeout=10)
-        sUrl = response.url  
+        sUrl = response.url
     except:
         sUrl = target_url
-    
 
     if 'voe' in hUrl[1].lower():
         if 'voe' in sUrl and 'voe.sx' not in sUrl:
@@ -1069,11 +1077,11 @@ def SSsearch(sSearchText=False, bGlobal=False):
                 for key in ['shows', 'series', 'movies', 'results']:
                     if key in data and isinstance(data[key], list):
                         items.extend(data[key])
-            
+
             for item in items:
                 title = (item.get('name') or item.get('title') or '').strip()
                 link = (item.get('url') or item.get('link') or '').strip()
-                
+
                 if not title or not link: continue
                 if sSearchText.lower() in title.lower() or _search_title_match(sSearchText, title):
                     full_url = _abs_url(link)
@@ -1082,7 +1090,7 @@ def SSsearch(sSearchText=False, bGlobal=False):
                         if not thumb:
                             slug = full_url.rstrip('/').split('/')[-1]
                             thumb = URL_MAIN + '/media/images/channel/thumb/' + slug + '.png'
-                        
+
                         seen.add(full_url)
                         aResult.append((full_url, title, _abs_url(thumb)))
     except:
@@ -1108,7 +1116,7 @@ def SSsearch(sSearchText=False, bGlobal=False):
                                 thumb = URL_MAIN + '/media/images/channel/thumb/' + slug + '.png'
                                 seen.add(full_url)
                                 aResult.append((full_url, sName, thumb))
-                                
+
     if not aResult:
         xbmcgui.Dialog().notification(SITE_NAME, 'Keine Treffer für: ' + sSearchText)
         return
@@ -1128,13 +1136,13 @@ def getMetaInfo(link, title):
     _init()
     oRequest = cRequestHandler(_abs_url(link), caching=False)
     sHtmlContent = oRequest.request()
-    
+
     if isinstance(sHtmlContent, bytes):
         try:
             sHtmlContent = sHtmlContent.decode('utf-8')
         except:
             sHtmlContent = str(sHtmlContent)
-    
+
     if not sHtmlContent:
         return '', ''
 
@@ -1143,12 +1151,12 @@ def getMetaInfo(link, title):
         r'<img[^>]*(?:data-src|src)="([^"]*/media/images/channel/[^"]+)"[\s\S]*?class="series-description"[\s\S]*?<span[^>]*class="description-text">([^<]+)</span>',
         r'<img[^>]*(?:data-src|src)="([^"]+)"[\s\S]*?class="series-description"[\s\S]*?<span[^>]*class="description-text">([^<]+)</span>'
     ]
-    
+
     for pattern in patterns:
         isMatch, aResult = cParser.parse(sHtmlContent, pattern)
         if not isMatch:
             continue
         for sImg, sDescr in aResult:
             return _abs_url(sImg), sDescr
-    
+
     return '', ''
