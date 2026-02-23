@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-02-19T05:12:20Z",
+  "last_update": "2026-02-23T06:55:58Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -8,182 +8,182 @@
       "version": "1.0",
       "enabled": true,
       "description": "Einschalten Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "fhdfilme",
       "version": "1.0",
       "enabled": true,
       "description": "Fhdfilme Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "filmpalast",
       "version": "1.0",
       "enabled": true,
       "description": "Filmpalast Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "filmpro",
       "version": "1.0",
       "enabled": true,
       "description": "Filmpro Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "hdfilme",
       "version": "1.0",
       "enabled": true,
       "description": "Hdfilme Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "huhu",
       "version": "1.0",
       "enabled": true,
       "description": "Huhu Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "kinoger",
       "version": "1.0",
       "enabled": true,
       "description": "Kinoger Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "kinokiste",
       "version": "1.0",
       "enabled": true,
       "description": "Kinokiste Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "kinox",
       "version": "1.0",
       "enabled": true,
       "description": "Kinox Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "kkiste",
       "version": "1.0",
       "enabled": true,
       "description": "Kkiste Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "megakino",
       "version": "1.0",
       "enabled": true,
       "description": "Megakino Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "moflix",
       "version": "1.0",
       "enabled": true,
       "description": "Moflix Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "movie2k",
       "version": "1.0",
       "enabled": true,
       "description": "Movie2k Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "movie2k2",
       "version": "1.0",
       "enabled": true,
       "description": "Movie2k2 Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "netzkino",
       "version": "1.0",
       "enabled": true,
       "description": "Netzkino Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "primekiste",
       "version": "1.0",
       "enabled": true,
       "description": "Primekiste Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "serienstream-alt",
       "version": "1.0",
       "enabled": true,
       "description": "Serienstream-alt Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "serienstream",
       "version": "1.0",
       "enabled": true,
       "description": "Serienstream Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "streamcloud",
       "version": "1.0",
       "enabled": true,
       "description": "Streamcloud Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "streamkiste",
       "version": "1.0",
       "enabled": true,
       "description": "Streamkiste Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "topstreamfilm",
       "version": "1.0",
       "enabled": true,
       "description": "Topstreamfilm Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vavoo",
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vavoo2",
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo2 Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vavoo3",
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo3 Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vavoo4",
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo4 Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vixstream",
       "version": "1.0",
       "enabled": true,
       "description": "Vixstream Scraper",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     }
   ],
   "sites": [
@@ -192,210 +192,210 @@
       "version": "1.0",
       "enabled": true,
       "description": "Aniworld Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "dokus",
       "version": "1.0",
       "enabled": true,
       "description": "Dokus Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "einschalten",
       "version": "1.0",
       "enabled": true,
       "description": "Einschalten Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "fhdfilme",
       "version": "1.0",
       "enabled": true,
       "description": "Fhdfilme Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "filmpalast",
       "version": "1.0",
       "enabled": true,
       "description": "Filmpalast Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "filmpro",
       "version": "1.0",
       "enabled": true,
       "description": "Filmpro Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "hdfilme",
       "version": "1.0",
       "enabled": true,
       "description": "Hdfilme Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "huhu",
       "version": "1.0",
       "enabled": true,
       "description": "Huhu Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "internetarchive",
       "version": "1.0",
       "enabled": true,
       "description": "Internetarchive Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "kids_tube",
       "version": "1.0",
       "enabled": true,
       "description": "Kids_tube Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "kinoger",
       "version": "1.0",
       "enabled": true,
       "description": "Kinoger Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "kinokiste",
       "version": "1.0",
       "enabled": true,
       "description": "Kinokiste Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "kinox",
       "version": "1.0",
       "enabled": true,
       "description": "Kinox Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "kkiste",
       "version": "1.0",
       "enabled": true,
       "description": "Kkiste Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "megakino",
       "version": "1.0",
       "enabled": true,
       "description": "Megakino Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "moflix",
       "version": "1.0",
       "enabled": true,
       "description": "Moflix Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "movie2k",
       "version": "1.0",
       "enabled": true,
       "description": "Movie2k Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "movie2k2",
       "version": "1.0",
       "enabled": true,
       "description": "Movie2k2 Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "netzkino",
       "version": "1.0",
       "enabled": true,
       "description": "Netzkino Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "primekiste",
       "version": "1.0",
       "enabled": true,
       "description": "Primekiste Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "serienstream",
       "version": "1.0",
       "enabled": true,
       "description": "Serienstream Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "skiste",
       "version": "1.0",
       "enabled": true,
       "description": "Skiste Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "streamcloud",
       "version": "1.0",
       "enabled": true,
       "description": "Streamcloud Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "streamkiste",
       "version": "1.0",
       "enabled": true,
       "description": "Streamkiste Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "topstreamfilm",
       "version": "1.0",
       "enabled": true,
       "description": "Topstreamfilm Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vavoo",
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vavoo2",
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo2 Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vavoo3",
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo3 Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vavoo4",
       "version": "1.0",
       "enabled": true,
       "description": "Vavoo4 Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     },
     {
       "name": "vixstream",
       "version": "1.0",
       "enabled": true,
       "description": "Vixstream Site Module",
-      "last_modified": "2026-02-19"
+      "last_modified": "2026-02-23"
     }
   ],
   "repository": {
