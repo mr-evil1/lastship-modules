@@ -8,44 +8,66 @@ from resources.lib.indexers.navigatorXS import navigator
 from resources.lib.utils import isBlockedHoster
 from resources.lib import log_utils
 import requests
-session = requests.Session()
-session.headers.update({
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-})
 
-oNavigator = navigator()
-addDirectoryItem = oNavigator.addDirectoryItem
-setEndOfDirectory = oNavigator._endDirectory
-xsDirectory = oNavigator.xsDirectory
-params = ParameterHandler()
-
+# --- Diese vier Konstanten MÜSSEN auf Modul-Ebene stehen (PluginHandler liest sie beim Import) ---
 SITE_IDENTIFIER = 'serienstream'
 SITE_NAME = 'SerienStream'
 SITE_ICON = 'serienstream.png'
+SITE_GLOBAL_SEARCH = True
 
-DOMAIN = getSetting('plugin_'+ SITE_IDENTIFIER +'.domain', 's.to')
-
-if DOMAIN.replace('.', '').isdigit():
-    URL_MAIN = 'http://' + DOMAIN
-    REFERER = 'http://' + DOMAIN
-else:
-    URL_MAIN = 'https://' + DOMAIN
-    REFERER = 'https://' + DOMAIN
-
-URL_HOME = URL_MAIN
-URL_SERIES = URL_MAIN + '/serien'
-URL_NEW_SERIES = URL_MAIN + '/serien?by=alpha'
-URL_NEW_EPISODES = URL_MAIN
-URL_POPULAR = URL_MAIN + '/beliebte-serien'
-URL_LOGIN = URL_MAIN + '/login'
-URL_SEARCH = URL_MAIN + '/suche?term='
-URL_SEARCH_API = URL_MAIN + '/api/search/suggest?term='
-
-if getSetting('bypassDNSlock') == 'true':
-    setSetting('plugin_' + SITE_IDENTIFIER + '.domain', '186.2.175.5')
-
+# --- Alles andere wird lazy initialisiert (erst beim ersten Funktionsaufruf) ---
+_session = None
+_oNavigator = None
+_addDirectoryItem = None
+_setEndOfDirectory = None
+_xsDirectory = None
 _HOMEPAGE_CACHE = None
 _POPULAR_CACHE = None
+
+# URL-Variablen (werden durch _init() gesetzt)
+URL_MAIN = None
+URL_HOME = None
+URL_SERIES = None
+URL_NEW_SERIES = None
+URL_NEW_EPISODES = None
+URL_POPULAR = None
+URL_LOGIN = None
+URL_SEARCH = None
+URL_SEARCH_API = None
+
+
+def _init():
+    """Lazy-Initialisierung - läuft beim ersten echten Aufruf, NICHT beim Import."""
+    global _session, _oNavigator, _addDirectoryItem, _setEndOfDirectory, _xsDirectory
+    global URL_MAIN, URL_HOME, URL_SERIES, URL_NEW_SERIES, URL_NEW_EPISODES
+    global URL_POPULAR, URL_LOGIN, URL_SEARCH, URL_SEARCH_API
+
+    if _oNavigator is not None:
+        return
+
+    _session = requests.Session()
+    _session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    })
+    _oNavigator       = navigator()
+    _addDirectoryItem = _oNavigator.addDirectoryItem
+    _setEndOfDirectory = _oNavigator._endDirectory
+    _xsDirectory      = _oNavigator.xsDirectory
+
+    if getSetting('bypassDNSlock') == 'true':
+        setSetting('plugin_' + SITE_IDENTIFIER + '.domain', '186.2.175.5')
+
+    DOMAIN = getSetting('plugin_' + SITE_IDENTIFIER + '.domain', 's.to')
+    URL_MAIN         = ('http://' if DOMAIN.replace('.', '').isdigit() else 'https://') + DOMAIN
+    URL_HOME         = URL_MAIN
+    URL_SERIES       = URL_MAIN + '/serien'
+    URL_NEW_SERIES   = URL_MAIN + '/serien?by=alpha'
+    URL_NEW_EPISODES = URL_MAIN
+    URL_POPULAR      = URL_MAIN + '/beliebte-serien'
+    URL_LOGIN        = URL_MAIN + '/login'
+    URL_SEARCH       = URL_MAIN + '/suche?term='
+    URL_SEARCH_API   = URL_MAIN + '/api/search/suggest?term='
+
 
 def _norm_search_text(value):
     value = (value or '').lower()
@@ -86,6 +108,7 @@ def _normalize_series_root(url):
 
 
 def load():
+    _init()
     log_utils.log('========== LOAD ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     username = getSetting('serienstream.user')
     password = getSetting('serienstream.pass')
@@ -93,21 +116,22 @@ def load():
     if username == '' or password == '':
         xbmcgui.Dialog().ok('SerienStream', 'Bitte Login-Daten in den Einstellungen eintragen!')
     else:
-        addDirectoryItem("Alle Serien (A-Z)", 'runPlugin&site=%s&function=allSeries&sUrl=%s&sCont=catalogNav' % (SITE_NAME, URL_NEW_SERIES), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Beliebte Serien", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_POPULAR), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Genre", 'runPlugin&site=%s&function=allSeries&sUrl=%s&sCont=homeContentGenresList' % (SITE_NAME, URL_MAIN + '/serien?by=genre'), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Neu auf S.to", 'runPlugin&site=%s&function=showNeu' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Angesagt", 'runPlugin&site=%s&function=showAngesagt' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Aktuell beliebt", 'runPlugin&site=%s&function=showAktuell' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Geheimtipps", 'runPlugin&site=%s&function=showGeheimtipps' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Suchtgefahr", 'runPlugin&site=%s&function=showSuchtgefahr' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Die Beliebtesten", 'runPlugin&site=%s&function=showBeliebtesten' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Neue Serien", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_NEW_SERIES), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Neue Episoden", 'runPlugin&site=%s&function=showNewEpisodes&sUrl=%s' % (SITE_NAME, URL_NEW_EPISODES), SITE_ICON, 'DefaultMovies.png')
-        addDirectoryItem("Suche", 'runPlugin&site=%s&function=showSearch' % SITE_NAME, SITE_ICON, 'DefaultAddonsSearch.png')
-    setEndOfDirectory()
+        _addDirectoryItem("Alle Serien (A-Z)", 'runPlugin&site=%s&function=allSeries&sUrl=%s&sCont=catalogNav' % (SITE_NAME, URL_NEW_SERIES), SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Beliebte Serien", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_POPULAR), SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Genre", 'runPlugin&site=%s&function=allSeries&sUrl=%s&sCont=homeContentGenresList' % (SITE_NAME, URL_MAIN + '/serien?by=genre'), SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Neu auf S.to", 'runPlugin&site=%s&function=showNeu' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Angesagt", 'runPlugin&site=%s&function=showAngesagt' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Aktuell beliebt", 'runPlugin&site=%s&function=showAktuell' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Geheimtipps", 'runPlugin&site=%s&function=showGeheimtipps' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Suchtgefahr", 'runPlugin&site=%s&function=showSuchtgefahr' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Die Beliebtesten", 'runPlugin&site=%s&function=showBeliebtesten' % SITE_NAME, SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Neue Serien", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_NEW_SERIES), SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Neue Episoden", 'runPlugin&site=%s&function=showNewEpisodes&sUrl=%s' % (SITE_NAME, URL_NEW_EPISODES), SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem("Suche", 'runPlugin&site=%s&function=showSearch' % SITE_NAME, SITE_ICON, 'DefaultAddonsSearch.png')
+    _setEndOfDirectory()
 
 def _getHomepage(force=False):
+    _init()
     global _HOMEPAGE_CACHE
 
     if _HOMEPAGE_CACHE is None or force:
@@ -133,6 +157,7 @@ def _getHomepage(force=False):
 
 
 def _getPopular():
+    _init()
     global _POPULAR_CACHE
 
     if _POPULAR_CACHE is None:
@@ -156,6 +181,7 @@ def _getPopular():
     
     
 def allSeries():
+    _init()
     log_utils.log('========== allSeries ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
     sUrl = params.getValue('sUrl')
@@ -212,15 +238,16 @@ def allSeries():
         sEntryUrl = _abs_url(sEntryUrl)
         
         if sCont == 'homeContentGenresList':
-            addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s&sGenre=%s' % (SITE_NAME, sEntryUrl, quote_plus(sName)), SITE_ICON, 'DefaultMovies.png')
+            _addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s&sGenre=%s' % (SITE_NAME, sEntryUrl, quote_plus(sName)), SITE_ICON, 'DefaultMovies.png')
         else:
-            addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sEntryUrl), SITE_ICON, 'DefaultMovies.png')
+            _addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sEntryUrl), SITE_ICON, 'DefaultMovies.png')
     
-    setEndOfDirectory()
+    _setEndOfDirectory()
 
 
 
 def showNewEpisodes(entryUrl=False):
+    _init()
     log_utils.log('========== showNewEpisodes ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
     
@@ -287,13 +314,14 @@ def showNewEpisodes(entryUrl=False):
         if not sThumbnail:
             sThumbnail = URL_MAIN + '/media/images/channel/thumb/' + sSeriesSlug + '?format=jpg'
 
-        addDirectoryItem(displayTitle, 'runPlugin&site=%s&function=getHosters&sUrl=%s&entryUrl=%s&TVShowTitle=%s&sThumbnail=%s' % (SITE_NAME, fullUrl, seriesUrl, quote_plus(sName.strip()), sThumbnail), sThumbnail, 'DefaultMovies.png')
+        _addDirectoryItem(displayTitle, 'runPlugin&site=%s&function=getHosters&sUrl=%s&entryUrl=%s&TVShowTitle=%s&sThumbnail=%s' % (SITE_NAME, fullUrl, seriesUrl, quote_plus(sName.strip()), sThumbnail), sThumbnail, 'DefaultMovies.png')
 
-    setEndOfDirectory()
+    _setEndOfDirectory()
 
 
 
 def showAngesagt():
+    _init()
     log_utils.log('========== showAngesagt ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     sHtmlContent = _getPopular()
     if not sHtmlContent:
@@ -304,6 +332,7 @@ def showAngesagt():
 
 
 def showNeu():
+    _init()
     log_utils.log('========== showNeu ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     sHtmlContent = _getHomepage()
     series = _parseNeuContent(sHtmlContent)
@@ -320,21 +349,25 @@ def showNeu():
 
 
 def showGeheimtipps():
+    _init()
     log_utils.log('========== showGeheimtipps ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     _showFromHeading('Geheimtipps')
 
 
 def showSuchtgefahr():
+    _init()
     log_utils.log('========== showSuchtgefahr ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     _showFromHeading('Suchtgefahr')
 
 
 def showBeliebtesten():
+    _init()
     log_utils.log('========== showBeliebtesten ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     _showFromHeading('Die Beliebtesten')
 
 
 def showAktuell():
+    _init()
     log_utils.log('========== showAktuell ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     sHtmlContent = _getPopular()
     if not sHtmlContent:
@@ -345,6 +378,7 @@ def showAktuell():
 
 
 def _showFromHeading(heading_text):
+    _init()
     sHtmlContent = _getHomepage()
     series = _parseHeadingContent(sHtmlContent, heading_text)
 
@@ -553,6 +587,7 @@ def _parseList(section_content):
 
 
 def _displaySeries(series_list):
+    _init()
     if not series_list:
         return
 
@@ -567,11 +602,12 @@ def _displaySeries(series_list):
             sThumbnail = SITE_ICON
             log_utils.log('No thumbnail for: %s, using default' % sName, log_utils.LOGDEBUG, SITE_IDENTIFIER)
 
-        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail, 'DefaultMovies.png')
+        _addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail, 'DefaultMovies.png')
 
-    setEndOfDirectory()
+    _setEndOfDirectory()
 
 def showAllSeries(entryUrl=False, sSearchText=False):
+    _init()
     log_utils.log('========== showAllSeries ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
 
@@ -672,12 +708,13 @@ def showAllSeries(entryUrl=False, sSearchText=False):
         if sThumbnail and not sThumbnail.startswith('http'):
             sThumbnail = URL_MAIN + sThumbnail if sThumbnail.startswith('/') else URL_MAIN + '/' + sThumbnail
 
-        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
 
-    setEndOfDirectory()
+    _setEndOfDirectory()
 
 
 def showEntries(entryUrl=False):
+    _init()
     log_utils.log('========== showEntries ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
     if not entryUrl:
@@ -805,14 +842,15 @@ def showEntries(entryUrl=False):
         if sThumbnail and not sThumbnail.startswith('http'):
             sThumbnail = _abs_url(sThumbnail)
 
-        addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
 
-    setEndOfDirectory()
+    _setEndOfDirectory()
 
 
 
 
 def showSeasons():
+    _init()
     params = ParameterHandler()
     sUrl = params.getValue('sUrl')
     sTVShowTitle = params.getValue('TVShowTitle')
@@ -859,12 +897,13 @@ def showSeasons():
     for sSeasonUrl, sNr, _ in aResult:
         sName = 'Staffel %s' % sNr
         sSeasonUrl = _abs_url(sSeasonUrl)
-        addDirectoryItem(sName, 'runPlugin&site=%s&function=showEpisodes&TVShowTitle=%s&sThumbnail=%s&sSeason=%s&sUrl=%s' % (SITE_NAME, quote_plus(sTVShowTitle), sThumbnail, sNr, sSeasonUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem(sName, 'runPlugin&site=%s&function=showEpisodes&TVShowTitle=%s&sThumbnail=%s&sSeason=%s&sUrl=%s' % (SITE_NAME, quote_plus(sTVShowTitle), sThumbnail, sNr, sSeasonUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
 
-    setEndOfDirectory()
+    _setEndOfDirectory()
 
 
 def showEpisodes():
+    _init()
     params = ParameterHandler()
     sUrl = params.getValue('sUrl')
     sTVShowTitle = params.getValue('TVShowTitle')
@@ -917,12 +956,13 @@ def showEpisodes():
 
         items.append(item)
 
-    xsDirectory(items, SITE_NAME)
-    setEndOfDirectory()
+    _xsDirectory(items, SITE_NAME)
+    _setEndOfDirectory()
 
 
 
 def getHosters():
+    _init()
     log_utils.log('========== getHosters ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
     params = ParameterHandler()
     
@@ -1002,6 +1042,7 @@ def getHosters():
 
 
 def getHosterUrl(hUrl):
+    _init()
     if isinstance(hUrl, str):
         hUrl = eval(hUrl)
 
@@ -1014,7 +1055,7 @@ def getHosterUrl(hUrl):
     }
     
     try:
-        response = session.get(target_url, headers=headers, timeout=10)
+        response = _session.get(target_url, headers=headers, timeout=10)
         sUrl = response.url  
     except:
         sUrl = target_url
@@ -1030,6 +1071,7 @@ def getHosterUrl(hUrl):
 
 
 def showSearch():
+    _init()
     try:
         from resources.lib.gui.gui import cGui
         sSearchText = cGui().showKeyBoard()
@@ -1041,10 +1083,12 @@ def showSearch():
 
 
 def _search(sSearchText):
+    _init()
     SSsearch(sSearchText, bGlobal=True)
 
 
 def SSsearch(sSearchText=False, bGlobal=False):
+    _init()
     if not sSearchText:
         return
     quoted = quote(sSearchText)
@@ -1109,7 +1153,7 @@ def SSsearch(sSearchText=False, bGlobal=False):
         return
 
     for sUrl, sName, sThumbnail in aResult:
-        addDirectoryItem(
+        _addDirectoryItem(
             sName,
             'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s'
             % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl),
@@ -1117,10 +1161,11 @@ def SSsearch(sSearchText=False, bGlobal=False):
             'DefaultGenre.png'
         )
 
-    setEndOfDirectory()
+    _setEndOfDirectory()
 
 
 def getMetaInfo(link, title):
+    _init()
     oRequest = cRequestHandler(_abs_url(link), caching=False)
     sHtmlContent = oRequest.request()
     
