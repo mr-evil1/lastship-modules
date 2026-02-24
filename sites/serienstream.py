@@ -1,4 +1,4 @@
-import json, sys, xbmcgui, re, random
+import json, sys, xbmcgui, xbmcvfs, re, random, os, time
 from resources.lib.ParameterHandler import ParameterHandler
 from resources.lib.requestHandler import cRequestHandler
 from resources.lib.tools import logger, cParser
@@ -119,54 +119,137 @@ def load():
         _addDirectoryItem("Neue Episoden", 'runPlugin&site=%s&function=showNewEpisodes&sUrl=%s' % (SITE_NAME, URL_NEW_EPISODES), SITE_ICON, 'DefaultMovies.png')
         _addDirectoryItem("Suche", 'runPlugin&site=%s&function=showSearch' % SITE_NAME, SITE_ICON, 'DefaultAddonsSearch.png')
     _setEndOfDirectory()
+    _prewarm()
+
+_CACHE_TTL = 60 * 60 * 24
+_CACHE_DIR = xbmcvfs.translatePath('special://profile/addon_data/plugin.video.lastship.reborn/cache/')
+
+def _diskCacheRead(filename):
+    path = os.path.join(_CACHE_DIR, filename)
+    try:
+        if os.path.exists(path) and (time.time() - os.path.getmtime(path)) < _CACHE_TTL:
+            with open(path, 'r', encoding='utf-8') as f:
+                log_utils.log('Disk cache hit: %s' % filename, log_utils.LOGINFO, SITE_IDENTIFIER)
+                return f.read()
+    except Exception as e:
+        log_utils.log('Disk cache read error: %s' % str(e), log_utils.LOGWARNING, SITE_IDENTIFIER)
+    return None
+
+def _diskCacheWrite(filename, content):
+    try:
+        if not os.path.exists(_CACHE_DIR):
+            os.makedirs(_CACHE_DIR)
+        with open(os.path.join(_CACHE_DIR, filename), 'w', encoding='utf-8') as f:
+            f.write(content)
+        log_utils.log('Disk cache written: %s' % filename, log_utils.LOGINFO, SITE_IDENTIFIER)
+    except Exception as e:
+        log_utils.log('Disk cache write error: %s' % str(e), log_utils.LOGWARNING, SITE_IDENTIFIER)
+
+def _fetchPage(url):
+    oRequest = cRequestHandler(url, ignoreErrors=True, caching=False)
+    sContent = oRequest.request()
+    if isinstance(sContent, bytes):
+        try:
+            sContent = sContent.decode('utf-8')
+        except:
+            sContent = str(sContent)
+    return sContent
+
+def _slugFromUrl(url):
+    return url.rstrip('/').split('/')[-1].split('?')[0]
+
+def _descCacheRead(slug):
+    path = os.path.join(_CACHE_DIR, 'descs.json')
+    try:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return data.get(slug, '')
+    except Exception as e:
+        log_utils.log('descCache read error: %s' % str(e), log_utils.LOGWARNING, SITE_IDENTIFIER)
+    return ''
+
+def _descCacheWrite(slug, desc):
+    if not slug or not desc:
+        return
+    path = os.path.join(_CACHE_DIR, 'descs.json')
+    try:
+        if not os.path.exists(_CACHE_DIR):
+            os.makedirs(_CACHE_DIR)
+        data = {}
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        data[slug] = desc
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception as e:
+        log_utils.log('descCache write error: %s' % str(e), log_utils.LOGWARNING, SITE_IDENTIFIER)
+
+def _descCacheReadAll():
+    path = os.path.join(_CACHE_DIR, 'descs.json')
+    try:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        log_utils.log('descCache readAll error: %s' % str(e), log_utils.LOGWARNING, SITE_IDENTIFIER)
+    return {}
+
+
 
 def _getHomepage(force=False):
     _init()
     global _HOMEPAGE_CACHE
 
-    if _HOMEPAGE_CACHE is None or force:
-        log_utils.log('Loading homepage (Force: %s)' % str(force), log_utils.LOGINFO, SITE_IDENTIFIER)
-        oRequest = cRequestHandler(URL_HOME, ignoreErrors=True, caching=(not force))
+    if not force and _HOMEPAGE_CACHE:
+        return _HOMEPAGE_CACHE
 
-        if not force:
-            oRequest.cacheTime = 60 * 30
-        sContent = oRequest.request()
+    if not force:
+        cached = _diskCacheRead('homepage.html')
+        if cached:
+            _HOMEPAGE_CACHE = cached
+            return _HOMEPAGE_CACHE
 
-        if isinstance(sContent, bytes):
-            try:
-                sContent = sContent.decode('utf-8')
-            except:
-                sContent = str(sContent)
-
+    log_utils.log('Fetching homepage from server (force=%s)' % force, log_utils.LOGINFO, SITE_IDENTIFIER)
+    sContent = _fetchPage(URL_HOME)
+    if sContent:
         _HOMEPAGE_CACHE = sContent
-        log_utils.log('Homepage loaded: %d characters' % len(_HOMEPAGE_CACHE) if _HOMEPAGE_CACHE else 0, log_utils.LOGINFO, SITE_IDENTIFIER)
-    else:
-        log_utils.log('Using global cached homepage', log_utils.LOGINFO, SITE_IDENTIFIER)
-
+        _diskCacheWrite('homepage.html', sContent)
     return _HOMEPAGE_CACHE
 
 def _getPopular():
     _init()
     global _POPULAR_CACHE
 
-    if _POPULAR_CACHE is None:
-        log_utils.log('Loading popular page for first time', log_utils.LOGINFO, SITE_IDENTIFIER)
-        oRequest = cRequestHandler(URL_POPULAR, ignoreErrors=True)
-        oRequest.cacheTime = 60 * 30
-        sContent = oRequest.request()
+    if _POPULAR_CACHE:
+        return _POPULAR_CACHE
 
-        if isinstance(sContent, bytes):
-            try:
-                sContent = sContent.decode('utf-8')
-            except:
-                sContent = str(sContent)
+    cached = _diskCacheRead('popular.html')
+    if cached:
+        _POPULAR_CACHE = cached
+        return _POPULAR_CACHE
 
+    log_utils.log('Fetching popular page from server', log_utils.LOGINFO, SITE_IDENTIFIER)
+    sContent = _fetchPage(URL_POPULAR)
+    if sContent:
         _POPULAR_CACHE = sContent
-        log_utils.log('Popular loaded: %d characters' % len(_POPULAR_CACHE) if _POPULAR_CACHE else 0, log_utils.LOGINFO, SITE_IDENTIFIER)
-    else:
-        log_utils.log('Using cached popular page', log_utils.LOGINFO, SITE_IDENTIFIER)
-
+        _diskCacheWrite('popular.html', sContent)
     return _POPULAR_CACHE
+
+def _prewarm():
+    import threading
+    def _run():
+        try:
+            if not _diskCacheRead('homepage.html'):
+                log_utils.log('Prewarming homepage cache', log_utils.LOGINFO, SITE_IDENTIFIER)
+                _getHomepage()
+            if not _diskCacheRead('popular.html'):
+                log_utils.log('Prewarming popular cache', log_utils.LOGINFO, SITE_IDENTIFIER)
+                _getPopular()
+        except Exception as e:
+            log_utils.log('Prewarm error: %s' % str(e), log_utils.LOGWARNING, SITE_IDENTIFIER)
+    threading.Thread(target=_run, daemon=True).start()
 
 def allSeries():
     _init()
@@ -562,6 +645,7 @@ def _displaySeries(series_list):
     if not series_list:
         return
 
+    descMap = _descCacheReadAll()
     for sUrl, sName, sThumbnail in series_list:
         if not sUrl.startswith('http'):
             sUrl = URL_MAIN + sUrl if sUrl.startswith('/') else URL_MAIN + '/' + sUrl
@@ -573,7 +657,11 @@ def _displaySeries(series_list):
             sThumbnail = SITE_ICON
             log_utils.log('No thumbnail for: %s, using default' % sName, log_utils.LOGDEBUG, SITE_IDENTIFIER)
 
-        _addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail, 'DefaultMovies.png')
+        sPlot = descMap.get(_slugFromUrl(sUrl), '')
+        sMeta = quote_plus(json.dumps({'plot': sPlot, 'sUrl': sUrl, 'sThumbnail': sThumbnail}))
+        sQuery = 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl)
+        sQuery += '&meta=%s' % sMeta
+        _addDirectoryItem(sName, sQuery, sThumbnail, 'DefaultMovies.png', context=('Serieninfo', 'runPlugin&site=%s&function=showSeriesInfo&sUrl=%s&sName=%s' % (SITE_NAME, sUrl, quote_plus(sName))))
 
     _setEndOfDirectory()
 
@@ -657,6 +745,7 @@ def showAllSeries(entryUrl=False, sSearchText=False):
         log_utils.log('showAllSeries: No series found', log_utils.LOGWARNING, SITE_IDENTIFIER)
         return
 
+    descMap = _descCacheReadAll()
     for sUrl, sName, sThumbnail in aResult:
         if sSearchText and not sSearchText.lower() in sName.lower():
             continue
@@ -679,7 +768,11 @@ def showAllSeries(entryUrl=False, sSearchText=False):
         if sThumbnail and not sThumbnail.startswith('http'):
             sThumbnail = URL_MAIN + sThumbnail if sThumbnail.startswith('/') else URL_MAIN + '/' + sThumbnail
 
-        _addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
+        sPlot = descMap.get(_slugFromUrl(sUrl), '')
+        sMeta = quote_plus(json.dumps({'plot': sPlot, 'sUrl': sUrl, 'sThumbnail': sThumbnail}))
+        sQuery = 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl)
+        sQuery += '&meta=%s' % sMeta
+        _addDirectoryItem(sName, sQuery, sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png', context=('Serieninfo', 'runPlugin&site=%s&function=showSeriesInfo&sUrl=%s&sName=%s' % (SITE_NAME, sUrl, quote_plus(sName))))
 
     _setEndOfDirectory()
 
@@ -692,15 +785,23 @@ def showEntries(entryUrl=False):
 
     sGenre = params.getValue('sGenre')
 
-    oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 6
-    sHtmlContent = oRequest.request()
-
-    if isinstance(sHtmlContent, bytes):
-        try:
-            sHtmlContent = sHtmlContent.decode('utf-8')
-        except:
-            sHtmlContent = str(sHtmlContent)
+    if entryUrl and URL_POPULAR and entryUrl.rstrip('/') == URL_POPULAR.rstrip('/'):
+        sHtmlContent = _getPopular()
+    elif entryUrl and URL_HOME and entryUrl.rstrip('/') == URL_HOME.rstrip('/'):
+        sHtmlContent = _getHomepage()
+    else:
+        sHtmlContent = _diskCacheRead('entries_%s.html' % abs(hash(entryUrl)))
+        if not sHtmlContent:
+            oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
+            oRequest.cacheTime = 60 * 60 * 6
+            sHtmlContent = oRequest.request()
+            if isinstance(sHtmlContent, bytes):
+                try:
+                    sHtmlContent = sHtmlContent.decode('utf-8')
+                except:
+                    sHtmlContent = str(sHtmlContent)
+            if sHtmlContent:
+                _diskCacheWrite('entries_%s.html' % abs(hash(entryUrl)), sHtmlContent)
 
     aResult = []
     isMatch = False
@@ -782,6 +883,8 @@ def showEntries(entryUrl=False):
                     thumbMap[key] = _abs_url(tImg)
 
     seen = set()
+    descMap = _descCacheReadAll()
+
     for item in aResult:
         if len(item) == 2:
             sUrl, sName = item
@@ -791,27 +894,26 @@ def showEntries(entryUrl=False):
 
         sUrl = sUrl.strip()
         sName = sName.strip() if isinstance(sName, str) else str(sName).strip()
-
         if not sUrl or not sName:
             continue
-
         fullUrl = _normalize_series_root(sUrl)
         if '/serie/' not in fullUrl:
             continue
-
         key = (fullUrl.lower(), sName.lower())
         if key in seen:
             continue
         seen.add(key)
-
         if not sThumbnail:
             sThumbnail = thumbMap.get(fullUrl, '')
-
         sUrl = _abs_url(sUrl)
         if sThumbnail and not sThumbnail.startswith('http'):
             sThumbnail = _abs_url(sThumbnail)
 
-        _addDirectoryItem(sName, 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
+        sPlot = descMap.get(_slugFromUrl(sUrl), '')
+        sMeta = quote_plus(json.dumps({'plot': sPlot, 'sUrl': sUrl, 'sThumbnail': sThumbnail}))
+        sQuery = 'runPlugin&site=%s&function=showSeasons&TVShowTitle=%s&sThumbnail=%s&sUrl=%s' % (SITE_NAME, quote_plus(sName), sThumbnail, sUrl)
+        sQuery += '&meta=%s' % sMeta
+        _addDirectoryItem(sName, sQuery, sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png', context=('Serieninfo', 'runPlugin&site=%s&function=showSeriesInfo&sUrl=%s&sName=%s' % (SITE_NAME, sUrl, quote_plus(sName))))
 
     _setEndOfDirectory()
 
@@ -843,6 +945,8 @@ def showSeasons():
         if meta_match:
             isDesc = True
             sDesc = unescape(meta_match.group(1)).strip()
+    if isDesc and sDesc:
+        _descCacheWrite(_slugFromUrl(sUrl), sDesc)
 
     sThumbnail = ''
     thumb_patterns = [
@@ -868,7 +972,7 @@ def showSeasons():
     for sSeasonUrl, sNr, _ in aResult:
         sName = 'Specials' if sNr == '0' else 'Staffel %s' % sNr
         sSeasonUrl = _abs_url(sSeasonUrl)
-        _addDirectoryItem(sName, 'runPlugin&site=%s&function=showEpisodes&TVShowTitle=%s&sThumbnail=%s&sSeason=%s&sUrl=%s' % (SITE_NAME, quote_plus(sTVShowTitle), sThumbnail, sNr, sSeasonUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png')
+        _addDirectoryItem(sName, 'runPlugin&site=%s&function=showEpisodes&TVShowTitle=%s&sThumbnail=%s&sSeason=%s&sUrl=%s' % (SITE_NAME, quote_plus(sTVShowTitle), sThumbnail, sNr, sSeasonUrl), sThumbnail if sThumbnail else SITE_ICON, 'DefaultMovies.png', plot=sDesc if isDesc else None)
 
     _setEndOfDirectory()
 
@@ -1040,6 +1144,60 @@ def getHosterUrl(hUrl):
             sUrl = sUrl.replace(parsed.netloc, 'voe.sx')
 
     return [{'streamUrl': sUrl, 'resolved': False}]
+
+def showSeriesInfo():
+    _init()
+    params = ParameterHandler()
+    sUrl = params.getValue('sUrl')
+    sName = params.getValue('sName') or ''
+
+    if not sUrl:
+        return
+
+    oRequest = cRequestHandler(sUrl, caching=True)
+    oRequest.cacheTime = 60 * 60 * 24
+    sHtmlContent = oRequest.request()
+
+    if isinstance(sHtmlContent, bytes):
+        try:
+            sHtmlContent = sHtmlContent.decode('utf-8')
+        except:
+            sHtmlContent = str(sHtmlContent)
+
+    if not sHtmlContent:
+        xbmcgui.Dialog().ok(sName, 'Keine Informationen gefunden.')
+        return
+
+    sDesc = ''
+    isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, r'<span[^>]*class="description-text"[^>]*>(.*?)</span>')
+    if not isDesc or not sDesc:
+        meta_match = re.search(r'name="description"\s+content="([^"]+)"', sHtmlContent)
+        if meta_match:
+            sDesc = unescape(meta_match.group(1)).strip()
+
+    sDesc = re.sub(r'<[^>]+>', '', sDesc).strip()
+    sDesc = unescape(sDesc)
+    if sDesc:
+        _descCacheWrite(_slugFromUrl(sUrl), sDesc)
+
+    genres = re.findall(r'<a[^>]*href="[^"]*genre[^"]*"[^>]*>([^<]+)</a>', sHtmlContent)
+    sGenres = ', '.join(g.strip() for g in genres) if genres else ''
+
+    year_match = re.search(r'<span[^>]*class="[^"]*year[^"]*"[^>]*>(\d{4})</span>', sHtmlContent)
+    sYear = year_match.group(1) if year_match else ''
+
+    lines = []
+    if sYear:
+        lines.append('[B]Jahr:[/B] ' + sYear)
+    if sGenres:
+        lines.append('[B]Genre:[/B] ' + sGenres)
+    if sDesc:
+        lines.append('')
+        lines.append(sDesc)
+
+    sInfo = '\n'.join(lines) if lines else 'Keine Informationen verfügbar.'
+    xbmcgui.Dialog().textviewer(sName, sInfo)
+
 
 def showSearch():
     _init()
