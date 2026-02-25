@@ -25,17 +25,12 @@ except ImportError:
 
 
 def _all_variants(title):
-    """Erzeugt alle moeglichen normalisierten Varianten eines Titels.
-    Probiert alle verfuegbaren cleantitle-Funktionen sowie eigene Bereinigungen."""
     if not title:
         return []
 
     results = []
-
-    # Schritt 1: HTML-Entities auflösen
     title_clean = html_unescape(title)
 
-    # Variante A: Original (wie im Originalcode)
     try:
         v = cleantitle.get(title_clean)
         if v:
@@ -43,7 +38,6 @@ def _all_variants(title):
     except:
         pass
 
-    # Variante B: geturl (URL-freundlich, ersetzt Sonderzeichen anders)
     try:
         v = cleantitle.geturl(title_clean)
         if v:
@@ -51,7 +45,6 @@ def _all_variants(title):
     except:
         pass
 
-    # Variante C: getsearch
     try:
         v = cleantitle.getsearch(title_clean)
         if v:
@@ -59,7 +52,6 @@ def _all_variants(title):
     except:
         pass
 
-    # Variante D: movie
     try:
         v = cleantitle.movie(title_clean)
         if v:
@@ -67,7 +59,6 @@ def _all_variants(title):
     except:
         pass
 
-    # Variante E: tv
     try:
         v = cleantitle.tv(title_clean)
         if v:
@@ -75,7 +66,6 @@ def _all_variants(title):
     except:
         pass
 
-    # Variante F: & entfernen (nicht ersetzen) -> "His & Hers" = "hishers"
     try:
         t2 = re.sub(r'\s*&\s*', ' ', title_clean)
         v = cleantitle.get(t2)
@@ -84,7 +74,6 @@ def _all_variants(title):
     except:
         pass
 
-    # Variante G: & und 'and' entfernen -> robuster gegen cleantitle-interne &->and Umwandlung
     try:
         t3 = re.sub(r'\s*&\s*', ' ', title_clean)
         t3 = re.sub(r'\band\b', ' ', t3, flags=re.IGNORECASE)
@@ -94,7 +83,6 @@ def _all_variants(title):
     except:
         pass
 
-    # Variante H: eigene minimalistische Normalisierung (lowercase, nur a-z0-9)
     try:
         t4 = html_unescape(title)
         t4 = re.sub(r'\s*&\s*', ' ', t4)
@@ -109,7 +97,6 @@ def _all_variants(title):
 
 
 def _titles_match(search_variants, scraped_title):
-    """Prueft ob einer der Suchvarianten im gescrapten Titel (in allen Varianten) enthalten ist."""
     scraped_variants = _all_variants(scraped_title)
 
     if log_utils:
@@ -146,8 +133,6 @@ class source:
             return self.sources
 
         try:
-            # Originalcode: t = [cleantitle.get(i) for i in titles if i]
-            # Jetzt: alle Varianten fuer jeden Suchtitel sammeln
             t = []
             for i in titles:
                 if i:
@@ -186,30 +171,20 @@ class source:
                     logger.info('SerienStream - Login failed, but continuing anyway')
 
             aLinks = []
-            for title in titles:
-                if not title:
-                    continue
 
+            if imdb:
                 try:
                     try:
                         from urllib import quote
                     except:
                         from urllib.parse import quote
 
-                    if isinstance(title, str):
-                        try:
-                            search_term = quote(title)
-                        except:
-                            search_term = quote(title.encode('utf-8'))
-                    else:
-                        search_term = quote(title)
-
-                    search_url = urljoin(self.base_link, self.search_link + search_term)
+                    imdb_search_url = urljoin(self.base_link, self.search_link + quote(imdb))
 
                     if log_utils:
-                        logger.info('SerienStream - Search URL: %s' % search_url)
+                        logger.info('SerienStream - IMDB search URL: %s' % imdb_search_url)
 
-                    oRequest = cRequestHandler(search_url)
+                    oRequest = cRequestHandler(imdb_search_url)
                     oRequest.addHeaderEntry('User-Agent', 'Mozilla/5.0')
                     sHtmlContent = oRequest.request()
 
@@ -217,36 +192,79 @@ class source:
 
                     if links:
                         if log_utils:
-                            logger.info('SerienStream - Found %d results' % len(links))
-
-                        for href, series_title in links:
-                            # Originalcode-Methode (Versuch 1): cleantitle.get direkt
-                            matched = False
-                            for clean_title in t:
-                                try:
-                                    if clean_title in cleantitle.get(series_title):
-                                        matched = True
-                                        break
-                                except:
-                                    pass
-
-                            # Erweiterung (Versuch 2): alle Varianten beidseitig
-                            if not matched:
-                                matched = _titles_match(t, series_title)
-
-                            if matched:
-                                aLinks.append({'source': href})
-                                if log_utils:
-                                    logger.info('SerienStream - Match: %s | title: %s' % (href, series_title))
-                                break
-
-                    if aLinks:
-                        break
+                            logger.info('SerienStream - IMDB search found %d results' % len(links))
+                        href, series_title = links[0]
+                        aLinks.append({'source': href})
+                        if log_utils:
+                            logger.info('SerienStream - IMDB match: %s | title: %s' % (href, series_title))
 
                 except Exception as e:
                     if log_utils:
-                        logger.info('SerienStream - Search error: %s' % str(e))
-                    continue
+                        logger.info('SerienStream - IMDB search error: %s' % str(e))
+
+            if not aLinks:
+                if log_utils:
+                    logger.info('SerienStream - No IMDB result, falling back to title search')
+
+                for title in titles:
+                    if not title:
+                        continue
+
+                    try:
+                        try:
+                            from urllib import quote
+                        except:
+                            from urllib.parse import quote
+
+                        if isinstance(title, str):
+                            try:
+                                search_term = quote(title)
+                            except:
+                                search_term = quote(title.encode('utf-8'))
+                        else:
+                            search_term = quote(title)
+
+                        search_url = urljoin(self.base_link, self.search_link + search_term)
+
+                        if log_utils:
+                            logger.info('SerienStream - Search URL: %s' % search_url)
+
+                        oRequest = cRequestHandler(search_url)
+                        oRequest.addHeaderEntry('User-Agent', 'Mozilla/5.0')
+                        sHtmlContent = oRequest.request()
+
+                        links = self._parse_search_results(sHtmlContent)
+
+                        if links:
+                            if log_utils:
+                                logger.info('SerienStream - Found %d results' % len(links))
+
+                            for href, series_title in links:
+                                matched = False
+                                for clean_title in t:
+                                    try:
+                                        if clean_title in cleantitle.get(series_title):
+                                            matched = True
+                                            break
+                                    except:
+                                        pass
+
+                                if not matched:
+                                    matched = _titles_match(t, series_title)
+
+                                if matched:
+                                    aLinks.append({'source': href})
+                                    if log_utils:
+                                        logger.info('SerienStream - Match: %s | title: %s' % (href, series_title))
+                                    break
+
+                        if aLinks:
+                            break
+
+                    except Exception as e:
+                        if log_utils:
+                            logger.info('SerienStream - Search error: %s' % str(e))
+                        continue
 
             if len(aLinks) == 0:
                 return self.sources
@@ -335,13 +353,11 @@ class source:
                 try:
                     title = None
 
-                    # Versuch 1: title-Attribut im selben Tag wie href
                     title_pattern = r'href="[^"]*' + re.escape(href) + r'"[^>]*title="([^"]+)"'
                     title_match = re.search(title_pattern, html, re.IGNORECASE)
                     if title_match:
                         title = title_match.group(1)
 
-                    # Versuch 2: Textinhalt des <a>-Tags
                     if not title:
                         context_pattern = r'href="[^"]*' + re.escape(href) + r'"[^>]*>(.{0,300}?)</a>'
                         context_match = re.search(context_pattern, html, re.IGNORECASE | re.DOTALL)
@@ -350,7 +366,6 @@ class source:
                             if inner:
                                 title = inner
 
-                    # Versuch 3: Fallback ueber URL-Slug
                     if not title:
                         slug = href.rstrip('/').split('/')[-1]
                         title = slug.replace('-', ' ').title()
