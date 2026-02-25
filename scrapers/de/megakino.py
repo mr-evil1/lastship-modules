@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+#thx neires
 import re, requests, time, resolveurl as resolver
 from scrapers.modules.tools import cParser
 from resources.lib.requestHandler import cRequestHandler
@@ -49,25 +50,47 @@ class source:
         except:
             return ""
 
+    def _search_and_match(self, search_term, t, titles):
+        try:
+            search_url = self.search_link % search_term
+            sHtmlContent = self.get_html(search_url)
+            if not sHtmlContent:
+                return None
+            pattern = r'<a class="poster grid-item[^>]*href="([^"]+)"[^>]*>.*?alt="([^"]+)"'
+            isMatch, aResult = cParser.parse(sHtmlContent, pattern)
+            if not isMatch:
+                return None
+            for sUrl, sName in aResult:
+                if not sUrl.startswith('http'):
+                    sUrl = self.base_link + sUrl
+                if cleantitle.get(sName) in t or any(cleantitle.get(x) in cleantitle.get(sName) for x in titles):
+                    return sUrl
+        except:
+            pass
+        return None
+
     def run(self, titles, year, season=0, episode=0, imdb='', hostDict=None):
         self.sources = []
         try:
             t = [cleantitle.get(i) for i in set(titles) if i]
-            for sSearchText in titles:
-                search_url = self.search_link % sSearchText
-                sHtmlContent = self.get_html(search_url)
-                if not sHtmlContent: continue
-                pattern = r'<a class="poster grid-item[^>]*href="([^"]+)"[^>]*>.*?alt="([^"]+)"'
-                isMatch, aResult = cParser.parse(sHtmlContent, pattern)
-                if not isMatch: continue
-                for sUrl, sName in aResult:
-                    if not sUrl.startswith('http'): sUrl = self.base_link + sUrl
-                    if cleantitle.get(sName) in t or any(cleantitle.get(x) in cleantitle.get(sName) for x in titles):
-                        self.get_sources(sUrl, year, season, episode, hostDict)
-                        if self.sources: return self.sources
-            return self.sources
+
+            found_url = None
+
+            if imdb:
+                found_url = self._search_and_match(imdb, t, titles)
+
+            if not found_url:
+                for sSearchText in titles:
+                    found_url = self._search_and_match(sSearchText, t, titles)
+                    if found_url:
+                        break
+
+            if found_url:
+                self.get_sources(found_url, year, season, episode, hostDict)
+
         except:
-            return self.sources
+            pass
+        return self.sources
 
     def get_sources(self, url, year, season, episode, hostDict):
         html = self.get_html(url)
