@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#thx neires
 import re
 import sys
 from resources.lib.control import getSetting, urljoin, setSetting
