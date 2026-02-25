@@ -52,7 +52,7 @@ def getHtmlContent(url):
     return sHtmlContent
 
 def load():
-    addDirectoryItem("Neu", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_MAIN ), SITE_ICON, 'DefaultMovies.png')
+    addDirectoryItem("Neu", 'runPlugin&site=%s&function=showEntries&sUrl=%s/' % (SITE_NAME, URL_MAIN ), SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem("Aktuelle Filme im Kino", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_KINO), SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem("Filme", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_MOVIES), SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem("Animationsfilme", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_ANIMATION), SITE_ICON, 'DefaultMovies.png')
