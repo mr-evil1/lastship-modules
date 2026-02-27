@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-02-27T13:04:16Z",
+  "last_update": "2026-02-27T13:40:14Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -395,6 +395,13 @@
       "version": "1.0",
       "enabled": true,
       "description": "Vixstream Site Module",
+      "last_modified": "2026-02-27"
+    },
+    {
+      "name": "xcine",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Xcine Site Module",
       "last_modified": "2026-02-27"
     }
   ],
