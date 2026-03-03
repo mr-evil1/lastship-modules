@@ -1,58 +1,60 @@
 # -*- coding: utf-8 -*-
-import json, sys,xbmcgui,re
+import json, xbmcgui
 from resources.lib.ParameterHandler import ParameterHandler
 from resources.lib.requestHandler import cRequestHandler
 from resources.lib.tools import logger, cParser
-from resources.lib.control import progressDialog, quote_plus, unescape, quote, execute
+from resources.lib.control import quote_plus, getSetting
 from resources.lib.indexers.navigatorXS import navigator
-from resources.lib.utils import isBlockedHoster
-from resources.lib.control import getSetting, setSetting
+
 oNavigator = navigator()
 addDirectoryItem = oNavigator.addDirectoryItem
 setEndOfDirectory = oNavigator._endDirectory
 xsDirectory = oNavigator.xsDirectory
 params = ParameterHandler()
+
 SITE_IDENTIFIER = 'fhdfilme'
 SITE_NAME = 'FHD Filme'
 SITE_ICON = 'fhdfilme.png'
 
-DOMAIN = getSetting('plugin_'+ SITE_IDENTIFIER +'.domain', 'hdfilme.party')
+DOMAIN   = getSetting('plugin_' + SITE_IDENTIFIER + '.domain', 'hdfilme.party')
 URL_MAIN = 'https://' + DOMAIN
-# URL_MAIN = 'https://hdfilme.my'
 
-URL_NEW = URL_MAIN + '/filme1/'
-URL_KINO = URL_MAIN + '/kinofilme/'
+URL_NEW    = URL_MAIN + '/filme1/'
+URL_KINO   = URL_MAIN + '/kinofilme/'
 URL_MOVIES = URL_MAIN
 URL_SERIES = URL_MAIN + '/serien/'
 URL_SEARCH = URL_MAIN + '/?story=%s&do=search&subaction=search'
 
+
 def load():
-    addDirectoryItem("Neu", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_NEW), SITE_ICON, 'DefaultMovies.png')
-    addDirectoryItem("Kino", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_KINO), SITE_ICON, 'DefaultMovies.png')
-    addDirectoryItem("Serien", 'runPlugin&site=%s&function=showEntries&isTvshow=True&sUrl=%s' % (SITE_NAME, URL_SERIES), SITE_ICON, 'DefaultTVShows.png')
-    addDirectoryItem("Filme", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_MOVIES), SITE_ICON, 'DefaultTVShows.png')
-    addDirectoryItem("Genre", 'runPlugin&site=%s&function=showValue&Value=%s&sUrl=%s' % (SITE_NAME, 'Genre',URL_MAIN), SITE_ICON, 'DefaultGenre.png')
-    addDirectoryItem("Releas", 'runPlugin&site=%s&function=showValue&Value=%s&sUrl=%s' % (SITE_NAME, 'Jahres',URL_MAIN), SITE_ICON, 'DefaultGenre.png')
-    addDirectoryItem("Land", 'runPlugin&site=%s&function=showValue&Value=%s&sUrl=%s' % (SITE_NAME, 'Land',URL_MAIN), SITE_ICON, 'DefaultGenre.png')
-    addDirectoryItem("Suche", 'runPlugin&site=%s&function=showSearch' % SITE_NAME, SITE_ICON, 'DefaultAddonsSearch.png')
+    addDirectoryItem('Neu',    'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_NEW),    SITE_ICON, 'DefaultMovies.png')
+    addDirectoryItem('Kino',   'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_KINO),   SITE_ICON, 'DefaultMovies.png')
+    addDirectoryItem('Serien', 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_SERIES), SITE_ICON, 'DefaultTVShows.png')
+    addDirectoryItem('Filme',  'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_MOVIES), SITE_ICON, 'DefaultMovies.png')
+    addDirectoryItem('Genre',  'runPlugin&site=%s&function=showValue&Value=Genre&sUrl=%s'  % (SITE_NAME, URL_MAIN), SITE_ICON, 'DefaultGenre.png')
+    addDirectoryItem('Jahr',   'runPlugin&site=%s&function=showValue&Value=Jahres&sUrl=%s' % (SITE_NAME, URL_MAIN), SITE_ICON, 'DefaultGenre.png')
+    addDirectoryItem('Land',   'runPlugin&site=%s&function=showValue&Value=Land&sUrl=%s'   % (SITE_NAME, URL_MAIN), SITE_ICON, 'DefaultGenre.png')
+    addDirectoryItem('Suche',  'runPlugin&site=%s&function=showSearch' % SITE_NAME, SITE_ICON, 'DefaultAddonsSearch.png')
     setEndOfDirectory()
 
 
-
-
 def showValue():
-    params = ParameterHandler()
+    params   = ParameterHandler()
+    sValue   = params.getValue('Value')
     oRequest = cRequestHandler(URL_MAIN)
-    oRequest.cacheTime = 60 * 60 * 48  # 48 Stunden
+    oRequest.cacheTime = 60 * 60 * 48
     sHtmlContent = oRequest.request()
-    pattern = '>{0}</a>(.*?)</ul>'.format(params.getValue('Value'))
+    pattern = '>{0}</(.*?)</a[^<]*</div>'.format(sValue)
     isMatch, sHtmlContainer = cParser.parseSingleResult(sHtmlContent, pattern)
     if not isMatch:
-        pattern = '>{0}</(.*?)</ul>'.format(params.getValue('Value'))
+        pattern = '>{0}</a>(.*?)</ul>'.format(sValue)
         isMatch, sHtmlContainer = cParser.parseSingleResult(sHtmlContent, pattern)
-    if isMatch:
-        isMatch, aResult = cParser.parse(sHtmlContainer, 'href="([^"]+).*?>([^<]+)')
     if not isMatch:
+        setEndOfDirectory()
+        return
+    isMatch, aResult = cParser.parse(sHtmlContainer, 'href="([^"]+).*?>([^<]+)')
+    if not isMatch:
+        setEndOfDirectory()
         return
     for sUrl, sName in aResult:
         if sUrl.startswith('/'):
@@ -60,206 +62,236 @@ def showValue():
         addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sUrl), SITE_ICON, 'DefaultGenre.png')
     setEndOfDirectory()
 
-def showEntries(entryUrl=False, sSearchText=False,bGlobal=False):
+
+def showEntries(entryUrl=False, sSearchText=False, bGlobal=False):
     params = ParameterHandler()
-    try: 
-        isTvshow=params.getValue('isTvshow')
-    except:
-        isTvshow = False
-    if not entryUrl: entryUrl = params.getValue('sUrl')
+    if not entryUrl:
+        entryUrl = params.getValue('sUrl')
+
     oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 6  # 6 Stunden
+    oRequest.cacheTime = 60 * 60 * 6
     sHtmlContent = oRequest.request()
+
     pattern = 'class="item relative mt-3">.*?href="([^"]+).*?title="([^"]+).*?data-src="([^"]+)(.*?)</div></div>'
     isMatch, aResult = cParser().parse(sHtmlContent, pattern)
     if not isMatch:
+        setEndOfDirectory()
         return
-    items=[]
-    total = len(aResult)
+
+    items = []
     for sUrl, sName, sThumbnail, sDummy in aResult:
-        item={}
         if sSearchText and not cParser.search(sSearchText, sName):
             continue
-        isYear, sYear = cParser.parseSingleResult(sDummy, 'mt-1"><span>([\d]+)</span>')  # Release Jahr
-        isDuration, sDuration = cParser.parseSingleResult(sDummy,r'<span>(\d+)\s*min</span>')
 
-        if int(sDuration) <= 70: # Wenn Laufzeit kleiner oder gleich 70min, dann ist es eine Serie.
-            isTvshow = True
-        else:
-            isTvshow = False
+        isYear,     sYear     = cParser.parseSingleResult(sDummy, r'mt-1">[^<]*<span>([\d]+)</span>')
+        isDuration, sDuration = cParser.parseSingleResult(sDummy, r'<span>([\d]+)\smin</span>')
+        isQuality,  sQuality  = cParser.parseSingleResult(sDummy, '">([^<]+)</span>')
+
+        isTvshow = (isDuration and int(sDuration) <= 70)
         if 'South Park: The End Of Obesity' in sName:
             isTvshow = False
-        isQuality, sQuality = cParser.parseSingleResult(sDummy, '">([^<]+)</span>')  # QualitÃ¤t
+
         sThumbnail = URL_MAIN + sThumbnail
+        infoTitle  = sName
+        if bGlobal:
+            sName = SITE_NAME + ' - ' + sName
+
+        item = {
+            'title':     sName,
+            'infoTitle': infoTitle,
+            'entryUrl':  sUrl,
+            'sUrl':      sUrl,
+            'poster':    sThumbnail,
+            'year':      sYear if isYear else '',
+            'plot':      '[B][COLOR blue]{0}[/B][CR]{1}[/COLOR][CR]'.format(SITE_NAME, infoTitle),
+            'isTvshow':  True,
+            'mediatype': 'tvshow' if isTvshow else 'movie',
+            'sFunction': 'showSeasons' if isTvshow else 'getHosters',
+        }
         if isTvshow:
-            item.setdefault('season', '0')
-            item.setdefault('sFunction', 'showSeasons')  # wenn abweichend! - nicht showSeasons !
-        else:
-            item.setdefault('sFunction', 'getHosters')  # wenn abweichend! - nicht showSeasons !
-        infoTitle = sName
-        if bGlobal: sName = SITE_NAME + ' - ' + sName
-        item.setdefault('infoTitle', infoTitle)  # für "Erweiterte Info"
-        item.setdefault('title', sName)
-        item.setdefault('entryUrl', sUrl)
-        item.setdefault('sUrl', sUrl)
-        item.setdefault('isTvshow', isTvshow)
-        item.setdefault('poster', sThumbnail)
-        item.setdefault('plot', '[B][COLOR blue]{0}[/B][CR]{1}[/COLOR][CR]'.format(SITE_NAME, sName))
+            item['season'] = '0'
         items.append(item)
+
     xsDirectory(items, SITE_NAME)
 
-    if bGlobal: return
-    if not sSearchText:# == None:
-        isMatchNextPage, sNextUrl = cParser().parseSingleResult(sHtmlContent, 'nav_ext">.*?next">.*?href="([^"]+)')
-        if isMatchNextPage:
+    if not bGlobal and not sSearchText:
+        isMatchNext, sNextUrl = cParser().parseSingleResult(sHtmlContent, 'nav_ext">.*?next">.*?href="([^"]+)')
+        if isMatchNext:
             if sNextUrl.startswith('/'):
-                sNextUrl=URL_MAIN+sNextUrl
-            addDirectoryItem('[B]>>>[/B]',  'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sNextUrl), 'next.png', 'next.png')
+                sNextUrl = URL_MAIN + sNextUrl
+            addDirectoryItem('[B]>>>[/B]', 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sNextUrl), 'next.png', 'next.png')
     setEndOfDirectory()
 
+
 def showSeasons():
-    params = ParameterHandler()
-    meta = json.loads(params.getValue('meta'))
-    sUrl = meta.get('sUrl') if meta.get('sUrl') else params.getValue('entryUrl')
-    sThumbnail =params.getValue('poster') if params.getValue('poster') else meta.get('poster')
+    params     = ParameterHandler()
+    meta       = json.loads(params.getValue('meta'))
+    sUrl       = meta.get('sUrl') or meta.get('entryUrl') or ''
+    sThumbnail = meta.get('poster') or ''
+    infoTitle  = meta.get('infoTitle') or meta.get('title') or ''
+
     oRequest = cRequestHandler(sUrl)
-    oRequest.cacheTime = 60 * 60 * 6  # HTML Cache Zeit 6 Stunden
+    oRequest.cacheTime = 60 * 60 * 6
     sHtmlContent = oRequest.request()
+
     pattern = 'class="su-accordion collapse show"(.*?)<br>'
     isMatch, sHtmlContainer = cParser.parseSingleResult(sHtmlContent, pattern)
     if isMatch:
-        isMatch, aResult = cParser.parse(sHtmlContainer, '#se-ac-(\d+)')
+        isMatch, aResult = cParser.parse(sHtmlContainer, r'#se-ac-(\d+)')
     if not isMatch:
+        setEndOfDirectory()
         return
-    total = len(aResult)
+
     for sSeason in aResult:
-        addDirectoryItem('Staffel ' + str(sSeason), 'runPlugin&site=%s&function=showEpisodes&sSeason=%s&sThumbnail=%s&infoTitle=%s&sUrl=%s' % (SITE_NAME, str(sSeason),sThumbnail,meta.get('infoTitle') ,sUrl), sThumbnail, 'DefaultGenre.png')
+        addDirectoryItem(
+            'Staffel ' + str(sSeason),
+            'runPlugin&site=%s&function=showEpisodes&sSeason=%s&sThumbnail=%s&infoTitle=%s&sUrl=%s' % (
+                SITE_NAME, str(sSeason),
+                quote_plus(sThumbnail), quote_plus(infoTitle), quote_plus(sUrl)
+            ),
+            sThumbnail or SITE_ICON, 'DefaultTVShows.png')
     setEndOfDirectory()
 
+
 def showEpisodes():
-    params = ParameterHandler()
-    entryUrl = params.getValue('sUrl') #if params.getValue('entryUrl') else params.getValue('entryUrl')
+    params     = ParameterHandler()
+    entryUrl   = params.getValue('sUrl')
     sThumbnail = params.getValue('sThumbnail')
-    sSeason = params.getValue('sSeason')
-    infoTitle=params.getValue('infoTitle')
+    sSeason    = params.getValue('sSeason')
+    infoTitle  = params.getValue('infoTitle')
+
     oRequest = cRequestHandler(entryUrl)
-    oRequest.cacheTime = 60 * 60 * 4  # HTML Cache Zeit 4 Stunden
+    oRequest.cacheTime = 60 * 60 * 4
     sHtmlContent = oRequest.request()
+
     pattern = '#se-ac-%s(.*?)</div></div>' % sSeason
     isMatch, sHtmlContainer = cParser.parseSingleResult(sHtmlContent, pattern)
     if isMatch:
-        isMatch, aResult = cParser.parse(sHtmlContainer, 'Episode\s(\d+)')
+        isMatch, aResult = cParser.parse(sHtmlContainer, r'Episode\s(\d+)')
     if not isMatch:
+        setEndOfDirectory()
         return
-    total = len(aResult)
-    items=[]
+
+    items = []
     for sEpisode in aResult:
-        item={}
-        item.setdefault('infoTitle', infoTitle)  # für "Erweiterte Info"
-        item.setdefault('title', 'Episode ' + str(sEpisode))
-        item.setdefault('entryUrl', entryUrl)
-        item.setdefault('isTvshow', False)
-        item.setdefault('poster', sThumbnail)
-        item.setdefault('plot', '[B][COLOR blue]{0}[/B][CR]{1}[/COLOR][CR]'.format(SITE_NAME, infoTitle))
-        #optionale items
-        item.setdefault('sFunction', 'showEpisodeHosters')  # wenn abweichend! - nicht showSeasons !
-        item.setdefault('sUrl', entryUrl)
-        item.setdefault('sSeason', sSeason)
-        item.setdefault('sEpisode', sEpisode)        
-        item.setdefault('sThumbnail', sThumbnail)
-        items.append(item)
+        items.append({
+            'title':      'Episode ' + str(sEpisode),
+            'infoTitle':  infoTitle,
+            'entryUrl':   entryUrl,
+            'sUrl':       entryUrl,
+            'poster':     sThumbnail or '',
+            'plot':       '[B][COLOR blue]{0}[/B][CR]{1}[/COLOR][CR]'.format(SITE_NAME, infoTitle),
+            'sSeason':    sSeason,
+            'sEpisode':   str(sEpisode),
+            'sThumbnail': sThumbnail or '',
+            'isTvshow':   True,
+            'mediatype':  'episode',
+            'sFunction':  'showEpisodeHosters',
+        })
     xsDirectory(items, SITE_NAME)
     setEndOfDirectory()
 
+
 def showEpisodeHosters():
-    hosters = []
-    params = ParameterHandler()
-    isTvshow=False
-    meta = json.loads(params.getValue('meta'))
-    sUrl = meta.get('entryUrl')
-    sSeason = meta.get('sSeason')
-    sEpisode = meta.get('sEpisode')
-    sThumbnail=meta.get('sThumbnail')
-    isResolve = True
-    isProgressDialog=True
-    sHtmlContent = cRequestHandler(sUrl).request()
+    params     = ParameterHandler()
+    meta_str   = params.getValue('meta')
+    meta       = json.loads(meta_str)
+    sUrl       = meta.get('entryUrl') or meta.get('sUrl') or ''
+    sSeason    = meta.get('sSeason') or ''
+    sEpisode   = meta.get('sEpisode') or ''
+    sThumbnail = meta.get('sThumbnail') or meta.get('poster') or ''
+    sTitle     = meta.get('infoTitle') or meta.get('title') or ''
+
+    sHtmlContent = cRequestHandler(sUrl, ignoreErrors=True).request()
+
     pattern = '#se-ac-%s(.*?)</div></div>' % sSeason
     isMatch, sHtmlContainer = cParser.parseSingleResult(sHtmlContent, pattern)
-    items=[]
-    if isMatch:
-        pattern = 'x%s\sEpisode(.*?)<br' % sEpisode
-        isMatch2, sHtmlLink = cParser.parseSingleResult(sHtmlContainer, pattern)
-        if isMatch2:
-            isMatch3, aResult = cParser().parse(sHtmlLink, 'href="([^"]+)')
-            if isMatch3:
-                if isProgressDialog: progressDialog.create('xStream V2', 'Erstelle Hosterliste ...')
-                t = 0
-                if isProgressDialog: progressDialog.update(t)
-                for sUrl in aResult:
-                    sName = cParser.urlparse(sUrl)
-                    if sUrl.startswith('//'):
-                        sUrl = 'https:' + sUrl
-                    sHoster=cParser.urlparse(sUrl)
-                    if sUrl.startswith('/'): sUrl = 'https:' + sUrl
-                    t += 100/ len(aResult)
-                    if isProgressDialog: progressDialog.update(int(t), '[CR]Überprüfe Stream von ' + sHoster)
-                    elif isBlockedHoster(sHoster)[0]: continue  # Hoster aus settings.xml oder deaktivierten Resolver ausschließen
-                    elif 'outube' in sHoster:
-                        sHoster=sHoster.split('.')[0]+' Trailer'
-                    if isResolve:
-                        isBlocked, sUrl = isBlockedHoster(sUrl, resolve=isResolve)
-                        if isBlocked: continue
-                    elif isBlockedHoster(sUrl)[0]: continue
-                    items.append((sHoster, sName,meta, isResolve, sUrl, sThumbnail))
-                    t += 100 / len(aResult)
-                if isProgressDialog:  progressDialog.close()
-    url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
-    execute('Container.Update(%s)' % url)
+    if not isMatch:
+        setEndOfDirectory()
+        return
+
+    pattern2 = r'x%s\sEpisode(.*?)<br' % sEpisode
+    isMatch2, sHtmlLink = cParser.parseSingleResult(sHtmlContainer, pattern2)
+    if not isMatch2:
+        setEndOfDirectory()
+        return
+
+    isMatch3, aResult = cParser().parse(sHtmlLink, 'href="([^"]+)')
+    if not isMatch3:
+        setEndOfDirectory()
+        return
+
+    hosters = []
+    for sUrl in aResult:
+        if 'youtube' in sUrl:
+            continue
+        if sUrl.startswith('//'):
+            sUrl = 'https:' + sUrl
+        sName = cParser.urlparse(sUrl).split('.')[0].strip()
+        hosters.append([sName, sTitle, meta_str, 0, sUrl, sThumbnail])
+        #                                        ^ 0 statt False → resolved=0 → resolveurl wird aufgerufen
+
+    if hosters:
+        oNavigator.showHosters(json.dumps(hosters))
+    else:
+        xbmcgui.Dialog().notification(SITE_NAME, 'Keine Streams gefunden', SITE_ICON, 3000)
+        setEndOfDirectory()
+
 
 def getHosters():
-    params = ParameterHandler()
-    hosters = []
-    items=[]
-    meta = json.loads(params.getValue('meta'))
-    isResolve = True
-    isTvshow=False
-    sThumbnail=meta.get('poster')
-    isProgressDialog=True
-    sUrl = ParameterHandler().getValue('entryUrl')
-    sHtmlContent = cRequestHandler(sUrl).request()
-    pattern = '<iframe\sw.*?src="([^"]+)'
+    params     = ParameterHandler()
+    meta_str   = params.getValue('meta') or '{}'
+    meta       = json.loads(meta_str)
+    sThumbnail = meta.get('poster') or ''
+    sTitle     = meta.get('infoTitle') or meta.get('title') or ''
+    sUrl       = params.getValue('entryUrl') or meta.get('entryUrl') or meta.get('sUrl') or ''
+
+    sHtmlContent = cRequestHandler(sUrl, ignoreErrors=True).request()
+
+    pattern = r'<iframe\sw.*?src="([^"]+)'
     isMatch, hUrl = cParser.parseSingleResult(sHtmlContent, pattern)
-    if isMatch:
-        sHtmlContainer = cRequestHandler(hUrl).request()
-        isMatch, aResult = cParser().parse(sHtmlContainer, 'data-link="([^"]+)')
-        if isMatch:
-            if isProgressDialog: progressDialog.create('xStream V2', 'Erstelle Hosterliste ...')
-            t = 0
-            if isProgressDialog: progressDialog.update(t)
-            for sUrl in aResult:
-                sName = cParser.urlparse(sUrl)
-                if sUrl.startswith('//'):
-                    sUrl = 'https:' + sUrl
-                sHoster=cParser.urlparse(sUrl)
-                t += 100/ len(aResult)
-                if isProgressDialog: progressDialog.update(int(t), '[CR]Überprüfe Stream von ' + sHoster)
-                elif isBlockedHoster(sHoster)[0]: continue  # Hoster aus settings.xml oder deaktivierten Resolver ausschließen
-                if 'outube' in sHoster:
-                    sHoster=sHoster.split('.')[0]+' Trailer'
-                if isResolve:
-                    isBlocked, sUrl = isBlockedHoster(sUrl, resolve=isResolve)
-                    if isBlocked: continue
-                items.append((sHoster, sName,meta, isResolve, sUrl, sThumbnail))
-            t += 100 / len(aResult)
-            if isProgressDialog:  progressDialog.close()
-        url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
-        execute('Container.Update(%s)' % url)
+    if not isMatch:
+        xbmcgui.Dialog().notification(SITE_NAME, 'Kein iframe gefunden', SITE_ICON, 3000)
+        setEndOfDirectory()
+        return
+
+    sHtmlContainer = cRequestHandler(hUrl, ignoreErrors=True).request()
+    isMatch, aResult = cParser().parse(sHtmlContainer, 'data-link="([^"]+)')
+    if not isMatch:
+        xbmcgui.Dialog().notification(SITE_NAME, 'Keine Links gefunden', SITE_ICON, 3000)
+        setEndOfDirectory()
+        return
+
+    hosters = []
+    for sUrl in aResult:
+        if 'youtube' in sUrl:
+            continue
+        if sUrl.startswith('//'):
+            sUrl = 'https:' + sUrl
+        sName = cParser.urlparse(sUrl).split('.')[0].strip()
+        hosters.append([sName, sTitle, meta_str, 0, sUrl, sThumbnail])
+        #                                        ^ 0 statt False → resolved=0 → resolveurl wird aufgerufen
+
+    if hosters:
+        oNavigator.showHosters(json.dumps(hosters))
+    else:
+        xbmcgui.Dialog().notification(SITE_NAME, 'Keine Streams gefunden', SITE_ICON, 3000)
+        setEndOfDirectory()
+
+
+def getHosterUrl(sUrl=False):
+    if not sUrl:
+        sUrl = params.getValue('sUrl')
+    return [{'streamUrl': sUrl, 'resolved': False}]
+
 
 def showSearch():
     sSearchText = oNavigator.showKeyBoard()
-    if not sSearchText: return
-    showEntries(URL_SEARCH % sSearchText, sSearchText, bGlobal=False)
+    if not sSearchText:
+        return
+    showEntries(URL_SEARCH % quote_plus(sSearchText), sSearchText, bGlobal=False)
+    setEndOfDirectory()
+
 
 def _search(sSearchText):
-    showEntries(URL_SEARCH % sSearchText, sSearchText, bGlobal=True)
-
+    showEntries(URL_SEARCH % quote_plus(sSearchText), sSearchText, bGlobal=True)
