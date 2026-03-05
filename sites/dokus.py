@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# Multi Scraper für Dokumentationen - Lastship Reborn Architektur
-# YouTube Integration wie kids_tube.py
 
 import json, sys, xbmc, xbmcplugin, xbmcaddon
 from resources.lib.ParameterHandler import ParameterHandler
@@ -389,7 +387,7 @@ def getHosters():
         t = 0
         if isProgressDialog: progressDialog.update(t)
         
-        youtube_fix()
+        youtube_fix.YT()
         apikey = Addon('plugin.video.youtube').getSetting('youtube.api.key')
         
         for sHosterUrl in aResult:
@@ -414,7 +412,7 @@ def getHosters():
                 
                 # YouTube Plugin URL erstellen
                 if apikey == '' or apikey == None:
-                    finalUrl = "plugin://plugin.video.youtube/play/?video_id=" + videoId + "&addon_id=plugin.video.streams"
+                    finalUrl = "plugin://plugin.video.youtube/play/?video_id=" + videoId + "&addon_id=plugin.video.lastship"
                 else:
                     finalUrl = "plugin://plugin.video.youtube/play/?video_id=" + videoId
                 
@@ -507,7 +505,7 @@ def showYTGenre():
     setEndOfDirectory()
 
 def showYTLists():
-    youtube_fix()
+    youtube_fix.YT()
     params = ParameterHandler()
     id = params.getValue('id')
     apikey = Addon('plugin.video.youtube').getSetting('youtube.api.key')
