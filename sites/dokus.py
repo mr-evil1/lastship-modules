@@ -389,7 +389,7 @@ def getHosters():
         t = 0
         if isProgressDialog: progressDialog.update(t)
         
-        youtube_fix.YT()
+        youtube_fix()
         apikey = Addon('plugin.video.youtube').getSetting('youtube.api.key')
         
         for sHosterUrl in aResult:
@@ -414,14 +414,14 @@ def getHosters():
                 
                 # YouTube Plugin URL erstellen
                 if apikey == '' or apikey == None:
-                    finalUrl = "plugin://plugin.video.youtube/play/?video_id=" + videoId + "&addon_id=plugin.video.lastship"
+                    finalUrl = "plugin://plugin.video.youtube/play/?video_id=" + videoId + "&addon_id=plugin.video.streams"
                 else:
                     finalUrl = "plugin://plugin.video.youtube/play/?video_id=" + videoId
                 
                 isResolve = False #für YouTube Plugin URLs!
                 
             
-                items.append((sHoster, sTitle, meta, isResolve, finalUrl))
+                items.append((sHoster, sTitle, meta, isResolve, finalUrl, sThumbnail))
             else:
                 # Kein YouTube - normaler Hoster
                 sHoster = cParser.urlparse(sHosterUrl).upper()
@@ -507,7 +507,7 @@ def showYTGenre():
     setEndOfDirectory()
 
 def showYTLists():
-    youtube_fix.YT()
+    youtube_fix()
     params = ParameterHandler()
     id = params.getValue('id')
     apikey = Addon('plugin.video.youtube').getSetting('youtube.api.key')
