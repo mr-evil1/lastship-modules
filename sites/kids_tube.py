@@ -30,7 +30,7 @@ Addon = xbmcaddon.Addon
 SITE_IDENTIFIER = 'kids_tube'
 SITE_NAME = 'Kids Tube'
 SITE_ICON = 'kids_tube.png'
-
+SITE_GLOBAL_SEARCH = False
 
 ACTIVE = True
 
