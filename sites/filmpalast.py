@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-
-#2024-10-10
-
-import json, sys
+import json, sys, re
 from resources.lib.ParameterHandler import ParameterHandler
 from resources.lib.requestHandler import cRequestHandler
 from resources.lib.tools import logger, cParser
@@ -89,8 +86,8 @@ def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
     hName = []  # Dubletten ausfiltern
     for sUrl, sName, sThumbnail, sDummy in aResult:
         if sSearchText:
-            pattern = '\\b%s\\b' % sSearchText.lower()
-            if not cParser().search(pattern , sName.lower()): continue
+            search_words = sSearchText.lower().split()
+            if not all(word in sName.lower() for word in search_words): continue
         item = {}
         if sThumbnail.startswith('/'):
             sThumbnail = URL_MAIN + sThumbnail
@@ -253,8 +250,8 @@ def getHosters():
 def showSearch():
     sSearchText = oNavigator.showKeyBoard()
     if not sSearchText: return
-    showEntries(URL_SEARCH % quote_plus(sSearchText), sSearchText, bGlobal=False)
+    showEntries(URL_SEARCH % quote(sSearchText), sSearchText, bGlobal=False)
 
 def _search(sSearchText):
-    showEntries(URL_SEARCH % quote_plus(sSearchText), sSearchText, bGlobal=True)
+    showEntries(URL_SEARCH % quote(sSearchText), sSearchText, bGlobal=True)
 
