@@ -19,16 +19,23 @@ SITE_IDENTIFIER = 'kinoger'
 SITE_DOMAIN = 'kinoger.com'
 SITE_NAME = SITE_IDENTIFIER.upper()
 from resolveurl.plugins import voesx
+
+DOOD_DOMAINS = ('dood.sbs', 'dood.re', 'dood.cx', 'dood.la', 'dood.so', 'dood.pm', 'dood.to', 'dood.watch')
+
+def _rewrite_dood(url):
+    for d in DOOD_DOMAINS:
+        if d in url.lower():
+            url = url.replace(d, 'veev.to')
+    return url
+
 def extract_media_id_from_kinoger(kinoger_url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36",
         "Referer": "https://kinoger.ru/"
     }
-    
     try:
         response = requests.get(kinoger_url, headers=headers, timeout=15)
         html = response.text
-        
         patterns = [
             r'https?://[^/]+/e/([a-zA-Z0-9]{8,12})',
             r'voe\.sx/e/([a-zA-Z0-9]{8,12})',
@@ -40,7 +47,6 @@ def extract_media_id_from_kinoger(kinoger_url):
                 if len(media_id) >= 8 and media_id.isalnum():
                     return media_id
         return None
-        
     except Exception:
         return None
 
@@ -50,13 +56,12 @@ def get_voe_stream_from_kinoger(kinoger_url):
         "Referer": "https://kinoger.ru/"
     }
     try:
-        media_id=extract_media_id_from_kinoger(kinoger_url)
+        media_id = extract_media_id_from_kinoger(kinoger_url)
         if media_id:
             resolver = voesx.VoeResolver()
             stream_url = resolver.get_media_url('voe.sx', media_id)
             return stream_url
         return None
-        
     except Exception as e:
         xbmc.log(f"Fehler: {str(e)}", xbmc.LOGERROR)
         return None
@@ -75,7 +80,7 @@ class source:
         items = []
         url = ''
         try:
-            t = [cleantitle.get(i) for i in titles  if i]
+            t = [cleantitle.get(i) for i in titles if i]
             years = [str(year), str(year + 1)] if season == 0 else ['']
             for title in titles:
                 try:
@@ -114,24 +119,23 @@ class source:
             quali = re.findall('title="Stream.(.+?)"', sHtmlContent)
             links = re.findall('.show.+?,(\[\[.+?\]\])', sHtmlContent)
             if len(links) == 0: return sources
-            
+
             if season > 0 and episode > 0:
                 season = season - 1
                 episode = episode - 1
 
             for i in range(0, len(links)):
-                
                 direct = True
                 pw = ast.literal_eval(links[i])
                 url = (pw[season][episode]).strip()
                 valid, host = source_utils.is_host_valid(url, hostDict)
                 if valid: direct = False
                 quality = quali[i]
-                if quality == '': 
+                if quality == '':
                     quality = 'SD'
-                elif quality == 'HD': 
+                elif quality == 'HD':
                     quality = '720p'
-                elif quality == 'HD+': 
+                elif quality == 'HD+':
                     quality = '1080p'
                 elif '2160' in quality or '4K' in quality:
                     quality = '4K'
@@ -146,16 +150,15 @@ class source:
             headers = '&Accept-Language=de%2Cen-US%3Bq%3D0.7%2Cen%3Bq%3D0.3&Accept=%2A%2F%2A&User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%3B+rv%3A99.0%29+Gecko%2F20100101+Firefox%2F99.0'
             for item in items:
                 try:
-                    if 'kinoger.re' in item['source']:continue
-                    elif 'p2p' in item['source'] or 'P2P' in item['source']:continue
+                    if 'kinoger.re' in item['source']: continue
+                    elif 'p2p' in item['source'] or 'P2P' in item['source']: continue
                     elif 'kinoger.ru' in item['source']:
-                        sUrl=item['url']
-                        
+                        sUrl = item['url']
                         stream_url = get_voe_stream_from_kinoger(sUrl)
                         if stream_url:
-                            sources.append({'source': item['source'], 'quality': item['quality'], 'language': 'de','url': stream_url, 'direct': False})
+                            sources.append({'source': item['source'], 'quality': item['quality'], 'language': 'de', 'url': stream_url, 'direct': False})
                     elif 'kinoger.be' in item['source']:
-                        sUrl=item['url']
+                        sUrl = item['url']
                         oRequest = cRequestHandler(sUrl, caching=False, ignoreErrors=True)
                         oRequest.addHeaderEntry('Referer', 'https://kinoger.com/')
                         sHtmlContent = oRequest.request()
@@ -180,17 +183,13 @@ class source:
                             for sQuality, sUrl in aResult:
                                 sUrl = (hUrl.split('video')[0].strip() + sUrl.strip())
                                 sUrl = sUrl + '|Origin=https%3A%2F%2Fkinoger.be&Referer=https%3A%2F%2Fkinoger.be%2F' + headers
-                                sources.append({'source': item['source'], 'quality': sQuality, 'language': 'de','url': sUrl, 'direct': True})
-
-
-
+                                sources.append({'source': item['source'], 'quality': sQuality, 'language': 'de', 'url': sUrl, 'direct': True})
                     else:
-                        url = item['url']
-                        sources.append({'source': item['source'], 'quality': item['quality'], 'language': 'de','url': url, 'direct': False})
+                        url = _rewrite_dood(item['url'])
+                        sources.append({'source': item['source'], 'quality': item['quality'], 'language': 'de', 'url': url, 'direct': False})
 
                 except:
                     continue
-
 
             if len(sources) == 0:
                 log_utils.log('Kinoger: kein Provider - %s ' % titles[0], log_utils.LOGINFO)
@@ -201,13 +200,11 @@ class source:
         except:
             return sources
 
-
     def resolve(self, url):
         try:
             return url
         except:
             return
-
 
     def _quali(self, q):
         if '720-' in q: return '720p'
@@ -227,7 +224,6 @@ class source:
         k = text[-1]
         t0, t1 = self.keys(k)
         text = text[:-1]
-
         for i in range(len(text)):
             for ii in range(len(t0)):
                 if text[i] in t0[ii]:
@@ -243,7 +239,6 @@ class source:
         a = (random.randint(2, 9))
         t0, t1 = self.keys(str(a))
         t = a + 5
-
         for r in range(len(e)):
             n += self.toString(ord(e[r]), t)
             n += '!'
@@ -334,4 +329,3 @@ class source:
         x = '7Vd5jIEF2lKy||nuewwgxb1qs'
         c2 = binascii.hexlify(x.encode('utf8')).decode('utf8')
         return 'https://{0}/{1}7/{2}'.format(host, c2, c1)
-
