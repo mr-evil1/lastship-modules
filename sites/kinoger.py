@@ -32,31 +32,20 @@ URL_SERIES = URL_MAIN + '/stream/serie/'
 def extract_supervideo_url(embed_url):
     try:
         from resources.lib import jsunpacker
-        
-        logger.info('Supervideo: Starte URL-Extraktion für: %s' % embed_url)
-        
         oRequest = cRequestHandler(embed_url, caching=False, ignoreErrors=True)
         oRequest.addHeaderEntry('Referer', 'https://kinoger.com/')
         oRequest.addHeaderEntry('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
         oRequest.addHeaderEntry('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8')
         oRequest.addHeaderEntry('Accept-Language', 'de,en-US;q=0.7,en;q=0.3')
-        
         sHtmlContent = oRequest.request()
-        
         if not sHtmlContent or len(sHtmlContent) < 100:
-            logger.info('Supervideo: Keine oder unzureichende HTML-Daten empfangen')
             return None
         isMatch, packed = cParser.parseSingleResult(sHtmlContent, r'(eval\s*\(function\(p,a,c,k,e,d\).*?)</script>')
-        
         if not isMatch:
-            logger.info('Supervideo: Kein gepacktes JavaScript gefunden')
             return None
-        
         try:
             unpacked = jsunpacker.unpack(packed)
-            logger.info('Supervideo: JavaScript erfolgreich entpackt')
         except Exception as e:
-            logger.info('Supervideo: Fehler beim JavaScript-Unpacking: %s' % str(e))
             return None
         patterns = [
             r'file\s*:\s*"([^"]+\.m3u8[^"]*)"',
@@ -65,33 +54,19 @@ def extract_supervideo_url(embed_url):
             r'(https?://[a-zA-Z0-9\-\.]+/[^"\s]+\.m3u8[^\s"]*)',
             r'src\s*:\s*"([^"]+\.m3u8[^"]*)"',
         ]
-        
         video_url = None
         for pattern in patterns:
             isMatch, result = cParser.parseSingleResult(unpacked, pattern)
             if isMatch:
                 video_url = result.replace('\\', '').strip()
-                logger.info('Supervideo: Video-URL gefunden mit Pattern: %s' % pattern)
                 break
-        
         if not video_url:
-            logger.info('Supervideo: Keine Video-URL im entpackten JavaScript gefunden')
             return None
-        
         if not video_url.startswith('http'):
-            logger.info('Supervideo: URL ist nicht vollständig: %s' % video_url)
             return None
-        
-        logger.info('Supervideo: Extrahierte Video-URL: %s' % video_url)
-        
         headers = '|Referer=https://supervideo.cc/&Origin=https://supervideo.cc&User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        
         return video_url + headers
-        
     except Exception as e:
-        logger.info('Supervideo: Unerwarteter Fehler bei der URL-Extraktion: %s' % str(e))
-        import traceback
-        logger.info('Supervideo: Traceback: %s' % traceback.format_exc())
         return None
 
 
@@ -111,7 +86,6 @@ def showGenre():
     isMatch, aResult = cParser.parse(sHtmlContent, pattern)
     if not isMatch:
         return
-
     for sUrl, sName in aResult:
         addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_MAIN + sUrl), SITE_ICON, 'DefaultGenre.png')
     setEndOfDirectory()
@@ -140,12 +114,12 @@ def showEntries(entryUrl=False, sSearchText=False, bGlobal=False):
     isMatch, aResult = cParser.parse(sHtmlContent, pattern)
     if not isMatch:
         return
-    items=[]
+    items = []
     total = len(aResult)
     for sUrl, sName, sThumbnail, sDummy in aResult:
         if sSearchText and not cParser.search(sSearchText, sName):
             continue
-        item={}
+        item = {}
         isTvshow = True if 'staffel' in sName.lower() or 'serie' in entryUrl or ';">S0' in sDummy else False
         isYear, sYear = cParser.parse(sName, '(.*?)\s+\((\d+)\)')
         if isYear:
@@ -155,32 +129,30 @@ def showEntries(entryUrl=False, sSearchText=False, bGlobal=False):
                 break
         isDesc, sDesc = cParser.parseSingleResult(sDummy, '(?:</b></div>|</div></b>|</b>)([^<]+)')
         isDuration, sDuration = cParser.parseSingleResult(sDummy, '(?:Laufzeit|Spielzeit).*?([\d]+)')
-        value='showSeasons' if isTvshow else 'getHosters'
+        value = 'showSeasons' if isTvshow else 'getHosters'
         if not isYear:
-            sYear=None
+            sYear = None
         if not isDesc:
-            sDesc=''
+            sDesc = ''
         if not isDuration:
-            sDuration=None
-        
-        item.setdefault('TVShowTitle',sName)
+            sDuration = None
+        item.setdefault('TVShowTitle', sName)
         item.setdefault('infoTitle', sName)
         item.setdefault('title', sName)
         item.setdefault('entryUrl', sUrl)
         item.setdefault('isTvshow', isTvshow)
         item.setdefault('poster', sThumbnail)
-        item.setdefault('plot', sDesc)        
-        item.setdefault('duration',sDuration)
-        item.setdefault('sThumbnail',sThumbnail)
+        item.setdefault('plot', sDesc)
+        item.setdefault('duration', sDuration)
+        item.setdefault('sThumbnail', sThumbnail)
         item.setdefault('sUrl', entryUrl)
-        item.setdefault('sFunction',value)
+        item.setdefault('sFunction', value)
         items.append(item)
     xsDirectory(items, SITE_NAME)
-
     if not bGlobal:
         isMatchNextPage, sNextUrl = cParser.parseSingleResult(sHtmlContent, '<a[^>]href="([^"]+)">vorw')
         if isMatchNextPage:
-            addDirectoryItem('[B]>>>[/B]',  'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sNextUrl), 'next.png', 'next.png')
+            addDirectoryItem('[B]>>>[/B]', 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sNextUrl), 'next.png', 'next.png')
     setEndOfDirectory()
 
 
@@ -193,7 +165,7 @@ def showSeasons():
     oRequest = cRequestHandler(entryUrl)
     oRequest.cacheTime = 60 * 60 * 6
     sHtmlContent = oRequest.request()
-    items=[]
+    items = []
     L11 = []
     isMatchsst, sstsContainer = cParser.parseSingleResult(sHtmlContent, 'sst.show.*?</script>')
     if isMatchsst:
@@ -215,7 +187,6 @@ def showSeasons():
         isMatchpw, L33 = cParser.parse(pwsContainer, "<'([^>]+)")
         if isMatchpw:
             total = len(L33)
-
     L44 = []
     isMatchgo, gosContainer = cParser.parseSingleResult(sHtmlContent, 'go.show.*?</script>')
     if isMatchgo:
@@ -223,11 +194,9 @@ def showSeasons():
         isMatchgo, L44 = cParser.parse(gosContainer, "<'([^>]+)")
         if isMatchgo:
             total = len(L44)
-
     isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, '</b>([^"]+)<br><br>')
     for i in range(0, total):
-        item={}
-        
+        item = {}
         try:
             item.setdefault('L11', L11[i])
         except Exception:
@@ -245,20 +214,18 @@ def showSeasons():
         except Exception:
             pass
         i = i + 1
-        
-        item.setdefault('sTVShowTitle',sTVShowTitle)
-        item.setdefault('infoTitle', sTVShowTitle) 
+        item.setdefault('sTVShowTitle', sTVShowTitle)
+        item.setdefault('infoTitle', sTVShowTitle)
         item.setdefault('title', 'Staffel ' + str(i))
         item.setdefault('entryUrl', entryUrl)
         item.setdefault('isTvshow', True)
         item.setdefault('poster', sThumbnail)
-        item.setdefault('plot', sDesc)        
-        item.setdefault('sThumbnail',sThumbnail)
+        item.setdefault('plot', sDesc)
+        item.setdefault('sThumbnail', sThumbnail)
         item.setdefault('sUrl', entryUrl)
-        item.setdefault('sSeasonNr',i)
-        item.setdefault('sDesc',sDesc)
-        item.setdefault('sFunction','showEpisodes')
-        
+        item.setdefault('sSeasonNr', i)
+        item.setdefault('sDesc', sDesc)
+        item.setdefault('sFunction', 'showEpisodes')
         items.append(item)
     xsDirectory(items, SITE_NAME)
     setEndOfDirectory()
@@ -271,7 +238,7 @@ def showEpisodes():
     sThumbnail = meta.get('sThumbnail')
     sTVShowTitle = str(meta.get('TVShowTitle'))
     sDesc = meta.get('sDesc')
-    items=[]
+    items = []
     L11 = []
     if meta.get('L11'):
         L11 = meta.get('L11')
@@ -292,45 +259,53 @@ def showEpisodes():
     i = 0
     for sUrl in liste:
         i = i + 1
-        item={}
-        item.setdefault('TVShowTitle',sTVShowTitle)
-        item.setdefault('infoTitle', sTVShowTitle) 
+        item = {}
+        item.setdefault('TVShowTitle', sTVShowTitle)
+        item.setdefault('infoTitle', sTVShowTitle)
         item.setdefault('title', 'Episode ' + str(i))
         item.setdefault('entryUrl', sUrl)
         item.setdefault('isTvshow', False)
         item.setdefault('poster', sThumbnail)
-        item.setdefault('plot', sDesc)        
-        item.setdefault('sThumbnail',sThumbnail)
+        item.setdefault('plot', sDesc)
+        item.setdefault('sThumbnail', sThumbnail)
         item.setdefault('sUrl', sUrl)
-        item.setdefault('sSeasonNr',sSeasonNr)
-        item.setdefault('sEpisode',i)
-        item.setdefault('sDesc','')
-        item.setdefault('sLinks',sUrl)
+        item.setdefault('sSeasonNr', sSeasonNr)
+        item.setdefault('sEpisode', i)
+        item.setdefault('sDesc', '')
+        item.setdefault('sLinks', sUrl)
         items.append(item)
     xsDirectory(items, SITE_NAME)
     setEndOfDirectory()
+
+
+def _resolve_kinoger_pw(sUrl):
+    try:
+        oReq = cRequestHandler(sUrl, caching=False, ignoreErrors=True)
+        oReq.addHeaderEntry('Referer', 'https://kinoger.com/')
+        oReq.request()
+        return oReq.getRealUrl() or sUrl
+    except Exception:
+        return sUrl
 
 
 def getHosters():
     params = ParameterHandler()
     meta = json.loads(params.getValue('meta'))
     isResolve = True
-    isTvshow=False
-    sThumbnail=meta.get('poster')
-    isProgressDialog=True
+    isTvshow = False
+    sThumbnail = meta.get('poster')
+    isProgressDialog = True
     sUrl = meta.get('sUrl')
     hosters = []
     headers = '&Accept-Language=de%2Cde-DE%3Bq%3D0.9%2Cen%3Bq%3D0.8%2Cen-GB%3Bq%3D0.7%2Cen-US%3Bq%3D0.6&Accept=%2A%2F%2A&User-Agent=Mozilla%2F5.0+%28Windows+NT+10.0%3B+Win64%3B+x64%3B+rv%3A99.0%29+Gecko%2F20100101+Firefox%2F99.0'
     params = ParameterHandler()
-    
+
     if meta.get('sLinks'):
         for sUrl in meta.get('sLinks'):
             isMatch, aResult = cParser.parse(sUrl, "(http[^']+)")
             if isMatch:
                 for sUrl in aResult:
                     try:
-                        
-
                         if 'kinoger.be' in sUrl:
                             oRequest = cRequestHandler(sUrl, caching=False, ignoreErrors=True)
                             oRequest.addHeaderEntry('Referer', 'https://kinoger.com/')
@@ -361,53 +336,31 @@ def getHosters():
 
                         elif 'kinoger.pw' in sUrl:
                             sQuality = '720'
-                            hoster = {'link': sUrl + 'DIREKT', 'name': 'Veev.to [I][%sp][/I]'% sQuality, 'quality': sQuality, 'resolveable': True}
+                            realUrl = _resolve_kinoger_pw(sUrl)
+                            realUrl = re.sub(r'dood\.[a-zA-Z]+', 'veev.to', realUrl)
+                            hoster = {'link': realUrl, 'name': 'Veev.to [I][%sp][/I]' % sQuality, 'quality': sQuality, 'resolveable': True}
                             hosters.append(hoster)
 
                         elif 'kinoger.re' in sUrl:
                             sQuality = '1080'
-                            hoster = {'link': sUrl + 'DIREKT', 'name': 'Kinoger.re [I][%sp][/I]'% sQuality, 'quality': sQuality, 'resolveable': True}
+                            hoster = {'link': sUrl + 'DIREKT', 'name': 'Kinoger.re [I][%sp][/I]' % sQuality, 'quality': sQuality, 'resolveable': True}
                             hosters.append(hoster)
 
                         else:
                             sQuality = '720'
                             sName = cParser.urlparse(sUrl)
-                            
-                            if isBlockedHoster(sName)[0]: 
+                            if isBlockedHoster(sName)[0]:
                                 continue
-                            
                             if 'supervideo' in sUrl.lower():
-                                logger.info('Supervideo-Hoster erkannt: %s' % sUrl)
-                                
                                 extracted_url = extract_supervideo_url(sUrl)
-                                
                                 if extracted_url:
-                                    logger.info('Supervideo: URL erfolgreich extrahiert und wird als resolvierbarer Stream hinzugefügt')
-                                    hoster = {
-                                        'link': extracted_url, 
-                                        'name': 'Supervideo [I][%sp][/I]' % sQuality, 
-                                        'quality': sQuality, 
-                                        'resolveable': True
-                                    }
+                                    hoster = {'link': extracted_url, 'name': 'Supervideo [I][%sp][/I]' % sQuality, 'quality': sQuality, 'resolveable': True}
                                     hosters.append(hoster)
                                 else:
-                                    logger.info('Supervideo: URL-Extraktion fehlgeschlagen, versuche Fallback mit resolveUrl')
-                                    hoster = {
-                                        'link': sUrl, 
-                                        'name': 'Supervideo [I][%sp][/I]' % sQuality, 
-                                        'displayedName': 'Supervideo [I][%sp][/I]' % sQuality,
-                                        'quality': sQuality, 
-                                        'resolveable': False
-                                    }
+                                    hoster = {'link': sUrl, 'name': 'Supervideo [I][%sp][/I]' % sQuality, 'displayedName': 'Supervideo [I][%sp][/I]' % sQuality, 'quality': sQuality, 'resolveable': False}
                                     hosters.append(hoster)
                             else:
-                                hoster = {
-                                    'link': sUrl + 'DIREKT', 
-                                    'name': sName, 
-                                    'displayedName': '%s [I][%sp][/I]' % (sName, sQuality), 
-                                    'quality': sQuality, 
-                                    'resolveable': True
-                                }
+                                hoster = {'link': sUrl + 'DIREKT', 'name': sName, 'displayedName': '%s [I][%sp][/I]' % (sName, sQuality), 'quality': sQuality, 'resolveable': True}
                                 hosters.append(hoster)
 
                     except Exception as e:
@@ -452,50 +405,29 @@ def getHosters():
 
                     elif 'kinoger.pw' in sUrl:
                         sQuality = '720'
-                        hoster = {'link': sUrl + 'DIREKT', 'name': 'Veev.to [I][%sp][/I]'% sQuality, 'quality': sQuality, 'resolveable': True}
+                        realUrl = _resolve_kinoger_pw(sUrl)
+                        realUrl = re.sub(r'dood\.[a-zA-Z]+', 'veev.to', realUrl)
+                        hoster = {'link': realUrl, 'name': 'Veev.to [I][%sp][/I]' % sQuality, 'quality': sQuality, 'resolveable': True}
                         hosters.append(hoster)
 
                     elif 'kinoger.re' in sUrl:
                         sQuality = '1080'
-                        hoster = {'link': sUrl + 'DIREKT', 'name': 'Kinoger.re [I][%sp][/I]'% sQuality, 'quality': sQuality, 'resolveable': True}
+                        hoster = {'link': sUrl + 'DIREKT', 'name': 'Kinoger.re [I][%sp][/I]' % sQuality, 'quality': sQuality, 'resolveable': True}
                         hosters.append(hoster)
 
                     else:
                         sQuality = '720'
                         sName = cParser.urlparse(sUrl)
-                        
                         if 'supervideo' in sUrl.lower():
-                            logger.info('Supervideo-Hoster erkannt: %s' % sUrl)
-                            
                             extracted_url = extract_supervideo_url(sUrl)
-                            
                             if extracted_url:
-                                logger.info('Supervideo: URL erfolgreich extrahiert')
-                                hoster = {
-                                    'link': extracted_url, 
-                                    'name': 'Supervideo [I][%sp][/I]' % sQuality, 
-                                    'quality': sQuality, 
-                                    'resolveable': True
-                                }
+                                hoster = {'link': extracted_url, 'name': 'Supervideo [I][%sp][/I]' % sQuality, 'quality': sQuality, 'resolveable': True}
                                 hosters.append(hoster)
                             else:
-                                logger.info('Supervideo: URL-Extraktion fehlgeschlagen, verwende Fallback')
-                                hoster = {
-                                    'link': sUrl, 
-                                    'name': 'Supervideo [I][%sp][/I]' % sQuality, 
-                                    'displayedName': 'Supervideo [I][%sp][/I]' % sQuality,
-                                    'quality': sQuality, 
-                                    'resolveable': False
-                                }
+                                hoster = {'link': sUrl, 'name': 'Supervideo [I][%sp][/I]' % sQuality, 'displayedName': 'Supervideo [I][%sp][/I]' % sQuality, 'quality': sQuality, 'resolveable': False}
                                 hosters.append(hoster)
                         else:
-                            hoster = {
-                                'link': sUrl + 'DIREKT', 
-                                'name': sName, 
-                                'displayedName': '%s [I][%sp][/I]' % (sName, sQuality), 
-                                'quality': sQuality, 
-                                'resolveable': True
-                            }
+                            hoster = {'link': sUrl + 'DIREKT', 'name': sName, 'displayedName': '%s [I][%sp][/I]' % (sName, sQuality), 'quality': sQuality, 'resolveable': True}
                             hosters.append(hoster)
 
                 except Exception as e:
@@ -506,36 +438,42 @@ def getHosters():
         return
 
     if hosters:
-        items=[]
+        items = []
         for shoster in hosters:
-            item={}
-            infoTitle=shoster['name']
-            hurl=getHosterUrl(shoster['link'])
-            streamUrl=hurl[0]['streamUrl']
-            isResolve=hurl[0]['resolved']
-            sUrl=shoster['link']
-            
+            item = {}
+            infoTitle = shoster['name']
+            hurl = getHosterUrl(shoster['link'])
+            streamUrl = hurl[0]['streamUrl']
+            isResolve = hurl[0]['resolved']
+            sUrl = shoster['link']
             if isProgressDialog: progressDialog.create('xStream V2', 'Erstelle Hosterliste ...')
             t = 0
             if isProgressDialog: progressDialog.update(t)
-            
-            sHoster=cParser.urlparse(streamUrl)
+            sHoster = cParser.urlparse(streamUrl)
             t += 100 / len(hosters)
             if isProgressDialog: progressDialog.update(int(t), '[CR]Überprüfe Stream von ' + sHoster)
             if 'ayer' in sHoster: continue
-            if 'p2p' in sHoster or 'P2P' in sHoster : continue
-            
+            if 'p2p' in sHoster or 'P2P' in sHoster: continue
             if 'outube' in sHoster:
-                sHoster=sHoster.split('.')[0]+' Trailer'
-            
+                sHoster = sHoster.split('.')[0] + ' Trailer'
             items.append((infoTitle, infoTitle, meta, isResolve, streamUrl, sThumbnail))
-        if isProgressDialog:  progressDialog.close()
-    
+        if isProgressDialog: progressDialog.close()
+
     url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
     execute('Container.Update(%s)' % url)
 
 
+DOOD_DOMAINS = ('dood.sbs', 'dood.re', 'dood.cx', 'dood.la', 'dood.so', 'dood.pm', 'dood.to', 'dood.watch')
+
+def _rewrite_dood(sUrl):
+    for d in DOOD_DOMAINS:
+        if d in sUrl.lower():
+            sUrl = sUrl.replace(d, 'veev.to')
+            logger.info('KinoGer: Dood-Domain ersetzt durch veev.to: %s' % sUrl)
+    return sUrl
+
 def getHosterUrl(sUrl=False):
+    sUrl = _rewrite_dood(sUrl)
     if sUrl.endswith('DIREKT'):
         sUrl1 = sUrl[:-6]
         Request = cRequestHandler(sUrl1, caching=False)
@@ -559,7 +497,7 @@ def _search(sSearchText):
     showEntries(URL_MAIN, sSearchText, bGlobal=True)
 
 
-def content_decryptor(html_content,passphrase):
+def content_decryptor(html_content, passphrase):
     match = re.compile(r'''JScripts = '(.+?)';''', re.DOTALL).search(html_content)
     if match:
         json_obj = json.loads(match.group(1))
