@@ -5,7 +5,7 @@ from resources.lib.requestHandler import cRequestHandler
 from scrapers.modules import cleantitle
 from resources.lib.control import getSetting, setSetting, urljoin
 SITE_IDENTIFIER = 'kinokiste'
-SITE_DOMAIN = 'kinokiste.club'
+SITE_DOMAIN = 'kinokiste.eu'
 SITE_NAME = SITE_IDENTIFIER.upper()
 class source:
     def __init__(self):
