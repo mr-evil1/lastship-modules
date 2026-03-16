@@ -1,4 +1,4 @@
-import re, sys, json
+9import re, sys, json
 import xbmc
 from datetime import datetime
 from resources.lib.ParameterHandler import ParameterHandler
@@ -84,8 +84,7 @@ def load():
         'runPlugin&site=%s&function=showYearsMenu&sLang=%s' % (SITE_NAME, sLang), SITE_ICON, 'DefaultYear.png')
     addDirectoryItem('Schauspieler',
         'runPlugin&site=%s&function=showSearchActor&sLang=%s' % (SITE_NAME, sLang), SITE_ICON, 'DefaultActor.png')
-    addDirectoryItem('Suche',
-        'runPlugin&site=%s&function=showSearch' % SITE_NAME, SITE_ICON, 'DefaultAddonsSearch.png')
+    
     setEndOfDirectory()
 
 def showMovieMenu():
