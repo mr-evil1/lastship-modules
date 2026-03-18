@@ -212,7 +212,7 @@ def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
         if sDesc:   plot += '[CR]{0}'.format(sDesc[:250])
 
         item = {
-            'title':     sTitle,
+            'title':     (SITE_NAME + ' - ' + sTitle) if bGlobal else sTitle,
             'infoTitle': sTitle,
             'entryUrl':  URL_WATCH % str(movie['_id']),
             'poster':    sThumbnail,
@@ -417,6 +417,9 @@ def showSearchActor():
     sLang = _getLang()
     showEntries(URL_CAST % (sLang, 'movies', 'new', quote_plus(sName), '1'), bGlobal=False)
 
+
+
+
 def showSearch():
     sSearchText = oNavigator.showKeyBoard()
     if not sSearchText:
@@ -464,7 +467,7 @@ def _search(sSearchText):
         if sDesc:   plot += '[CR]{0}'.format(sDesc[:250])
 
         item = {
-            'title':     sTitle,
+            'title':     SITE_NAME + ' - ' + sTitle,
             'infoTitle': sTitle,
             'entryUrl':  URL_WATCH % str(movie['_id']),
             'poster':    sThumbnail,
