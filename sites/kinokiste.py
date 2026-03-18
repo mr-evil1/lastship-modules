@@ -6,7 +6,6 @@ from resources.lib.requestHandler import cRequestHandler
 from resources.lib.tools import logger, cParser
 from resources.lib.control import progressDialog, quote_plus, quote, execute
 from resources.lib.indexers.navigatorXS import navigator
-from resources.lib.utils import isBlockedHoster
 from resources.lib.control import getSetting
 
 oNavigator = navigator()
@@ -19,14 +18,14 @@ SITE_IDENTIFIER = 'kinokiste'
 SITE_NAME       = 'Kinokiste'
 SITE_ICON       = 'kinokiste.png'
 
-DOMAIN    = getSetting('provider.' + SITE_IDENTIFIER + '.domain', 'kinokiste.eu')
+DOMAIN    = getSetting('provider.' + SITE_IDENTIFIER + '.domain', 'kinokiste.club')
 ORIGIN    = 'https://' + DOMAIN + '/'
 REFERER   = ORIGIN
 UA        = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 URL_API       = 'https://' + DOMAIN
-URL_MAIN      = URL_API + '/data/browse/?lang=%s&type=%s&order_by=%s&page=%s'
-URL_SEARCH    = URL_API + '/data/browse/?lang=%s&order_by=new&page=1&limit=0'
+URL_MAIN      = 'https://kinokiste.eu/data/browse/?lang=%s&type=%s&order_by=%s&page=%s'
+URL_SEARCH    = 'https://kinokiste.eu/data/browse/?lang=%s&order_by=new&page=1&limit=0'
 URL_THUMBNAIL = 'https://image.tmdb.org/t/p/w300%s'
 URL_WATCH     = URL_API + '/data/watch/?_id=%s'
 URL_GENRE     = URL_API + '/data/browse/?lang=%s&type=%s&order_by=%s&genre=%s&page=%s'
@@ -84,7 +83,8 @@ def load():
         'runPlugin&site=%s&function=showYearsMenu&sLang=%s' % (SITE_NAME, sLang), SITE_ICON, 'DefaultYear.png')
     addDirectoryItem('Schauspieler',
         'runPlugin&site=%s&function=showSearchActor&sLang=%s' % (SITE_NAME, sLang), SITE_ICON, 'DefaultActor.png')
-    
+    addDirectoryItem('Suche',
+        'runPlugin&site=%s&function=showSearch' % SITE_NAME, SITE_ICON, 'DefaultAddonsSearch.png')
     setEndOfDirectory()
 
 def showMovieMenu():
@@ -190,11 +190,10 @@ def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
     for movie in aJson['movies']:
         if '_id' not in movie:
             continue
-        sTitle = str(movie['title'])
+        sTitle   = str(movie['title'])
+        isTvshow = 'Staffel' in sTitle or 'Season' in sTitle
         if sSearchText and sSearchText.lower() not in sTitle.lower():
             continue
-        if 'Staffel' in sTitle or 'Season' in sTitle:
-            isTvshow = True
 
         sThumbnail = ''
         for key in ('poster_path_season', 'poster_path', 'backdrop_path'):
@@ -217,7 +216,7 @@ def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
             'infoTitle': sTitle,
             'entryUrl':  URL_WATCH % str(movie['_id']),
             'poster':    sThumbnail,
-            'isTvshow':  isTvshow,
+            'isTvshow':  True,
             'quality':   sQuality,
             'year':      sYear,
             'rating':    sRating,
@@ -241,7 +240,8 @@ def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
             if ' - ' in sTitle:
                 item['infoTitle'] = sTitle.split(' - ')[0].strip()
         else:
-            item['sFunction'] = 'getHosters'
+            item["sFunction"] = "getHosters"
+            item["isTvshow"]  = True  # isFolder=True -> gueltiger Handle fuer getHosters
 
         items.append(item)
 
@@ -318,6 +318,7 @@ def showEpisodes():
     setEndOfDirectory()
 
 def getHosters():
+    params   = ParameterHandler()
     sUrl     = params.getValue('entryUrl')
     sEpisode = params.getValue('episode')
     sRawMeta = params.getValue('meta')
@@ -338,6 +339,8 @@ def getHosters():
             pass
 
     if not sUrl:
+        logger.error('[%s] getHosters: keine URL' % SITE_NAME)
+        oNavigator.showHosters(json.dumps([]))
         return
 
     sJson = None
@@ -346,27 +349,38 @@ def getHosters():
         oRequest.addHeaderEntry('User-Agent', UA)
         oRequest.addHeaderEntry('Referer', REFERER)
         oRequest.addHeaderEntry('Origin', 'https://' + DOMAIN)
+        oRequest.addHeaderEntry('Accept', 'application/json, text/plain, */*')
+        oRequest.cacheTime = 0
         sJson = oRequest.request()
-    except:
+        logger.info('[%s] Watch-API Antwort: %d Bytes fuer %s' % (SITE_NAME, len(sJson) if sJson else 0, sUrl))
+        logger.info('[%s] Watch-API raw: %s' % (SITE_NAME, sJson[:300] if sJson else ''))
+    except Exception as e:
+        logger.error('[%s] Watch-API Fehler: %s' % (SITE_NAME, str(e)))
+        oNavigator.showHosters(json.dumps([]))
         return
 
     if not sJson:
+        logger.error('[%s] Watch-API leere Antwort fuer %s' % (SITE_NAME, sUrl))
+        oNavigator.showHosters(json.dumps([]))
         return
 
     try:
         aJson = json.loads(sJson)
-    except:
+    except Exception as e:
+        logger.error('[%s] Watch-API JSON-Fehler: %s' % (SITE_NAME, str(e)))
+        oNavigator.showHosters(json.dumps([]))
         return
 
     if 'streams' not in aJson or not aJson['streams']:
+        logger.info('[%s] Keine Streams - aJson keys: %s' % (SITE_NAME, str(list(aJson.keys()))))
+        logger.info('[%s] aJson streams wert: %s' % (SITE_NAME, str(aJson.get('streams', 'KEY_FEHLT'))))
+        oNavigator.showHosters(json.dumps([]))
         return
 
-    items = []
-    progressDialog.create(SITE_NAME, 'Suche Streams...')
-    total = len(aJson['streams'])
+    logger.info('[%s] %d Streams gefunden' % (SITE_NAME, len(aJson['streams'])))
 
-    for idx, stream in enumerate(aJson['streams']):
-        progressDialog.update(int((idx / total) * 100), 'Prüfe Streams...')
+    items = []
+    for stream in aJson['streams']:
         if 'e' in stream and sEpisode and str(stream['e']) != str(sEpisode):
             continue
         if 'stream' not in stream:
@@ -375,10 +389,6 @@ def getHosters():
         sStreamUrl = stream['stream']
         if sStreamUrl.startswith('//'):
             sStreamUrl = 'https:' + sStreamUrl
-
-        isBlocked, finalUrl = isBlockedHoster(sStreamUrl, resolve=True)
-        if isBlocked:
-            continue
 
         isMatch, aName = cParser.parse(sStreamUrl, '//([^/]+)/')
         if isMatch:
@@ -392,12 +402,10 @@ def getHosters():
         if stream.get('release') and str(stream['release']) != '':
             sHoster += ' [I][%s][/I]' % _getQuality(str(stream['release']))
 
-        items.append((sHoster, sTitle, meta, True, finalUrl, sThumbnail))
+        items.append((sHoster, sTitle, meta, False, sStreamUrl, sThumbnail))
 
-    progressDialog.close()
-
-    url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
-    execute('Container.Update(%s)' % url)
+    logger.info('[%s] %d Hoster-Items gebaut' % (SITE_NAME, len(items)))
+    oNavigator.showHosters(json.dumps(items))
 
 def getHosterUrl(sUrl=False):
     return [{'streamUrl': sUrl, 'resolved': False}]
@@ -412,6 +420,7 @@ def showSearchActor():
 def showSearch():
     sSearchText = oNavigator.showKeyBoard()
     if not sSearchText:
+        setEndOfDirectory()
         return
     _search(sSearchText)
 
@@ -423,6 +432,7 @@ def _search(sSearchText):
         _loadSearchData(sLang)
 
     if not _apiJson or not _apiJson.get('movies'):
+        setEndOfDirectory()
         return
 
     sst   = sSearchText.lower()
@@ -458,7 +468,7 @@ def _search(sSearchText):
             'infoTitle': sTitle,
             'entryUrl':  URL_WATCH % str(movie['_id']),
             'poster':    sThumbnail,
-            'isTvshow':  isTvshow,
+            'isTvshow':  True,
             'quality':   sQuality,
             'year':      sYear,
             'rating':    sRating,
@@ -468,8 +478,11 @@ def _search(sSearchText):
             item['sFunction'] = 'showEpisodes'
             mSeason = re.search(r'Staffel\s+(\d+)|Season\s+(\d+)', sTitle, re.IGNORECASE)
             item['season'] = (mSeason.group(1) or mSeason.group(2)) if mSeason else '1'
+            if ' - ' in sTitle:
+                item['infoTitle'] = sTitle.split(' - ')[0].strip()
         else:
-            item['sFunction'] = 'getHosters'
+            item["sFunction"] = "getHosters"
+            item["isTvshow"]  = True
         items.append(item)
 
     if items:
@@ -482,7 +495,7 @@ def _loadSearchData(sLang):
         oRequest = cRequestHandler(URL_SEARCH % sLang)
         oRequest.addHeaderEntry('User-Agent', UA)
         oRequest.addHeaderEntry('Referer', REFERER)
-        oRequest.addHeaderEntry('Origin', 'https://' + DOMAIN)
+        oRequest.addHeaderEntry('Origin', 'https://kinokiste.eu')
         oRequest.cacheTime = 60 * 60 * 48
         sJson    = oRequest.request()
         _apiJson = json.loads(sJson)
