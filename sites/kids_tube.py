@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
-# 2024.11.01
 import xbmc
 import xbmcgui, sys, urllib, urllib.parse, xbmcplugin,xbmcaddon
 import requests
@@ -40,15 +37,12 @@ ACTIVE = True
 def load(): # Menu structure of the site plugin
     logger.info('Load %s' % SITE_NAME)
     params = ParameterHandler()
+    setSetting('global_search_' + SITE_IDENTIFIER, 'false')
     # Abfrage ob Youtube installiert ist
     if getSetting('plugin_' + SITE_IDENTIFIER) == 'true':
         if not xbmc.getCondVisibility('System.HasAddon(%s)' % 'plugin.video.youtube'):
             xbmc.executebuiltin('InstallAddon(%s)' % 'plugin.video.youtube')
-    #addDirectoryItem(SITE_NAME_1+" : Neues", 'runPlugin&site=%s&function=showEntries_1&sUrl=%s' % (SITE_NAME, URL_MAIN_1), SITE_ICON, 'DefaultMovies.png')
-    #addDirectoryItem(SITE_NAME_1+" : Filme", 'runPlugin&site=%s&function=showEntries_1&sUrl=%s' % (SITE_NAME, URL_MOVIES_1), SITE_ICON, 'DefaultMovies.png')
-    #addDirectoryItem(SITE_NAME_1+" : Genre", 'runPlugin&site=%s&function=showGenre_1&sUrl=%s' % (SITE_NAME, URL_MOVIES_1), SITE_ICON, 'DefaultMovies.png')
-    #addDirectoryItem(SITE_NAME_1+" : Suche", 'runPlugin&site=%s&function=showSearch_1&sUrl=%s' % (SITE_NAME, URL_MOVIES_1), SITE_ICON, 'DefaultMovies.png')
-    if not params.getValue("action1"):# == 'runPlugin':
+    if not params.getValue("action1"):
         main_list()
     else:
         action1 = params.getValue("action1")
@@ -57,10 +51,9 @@ def load(): # Menu structure of the site plugin
             sub_listw(action1)
         elif action1.startswith('*'):
             action1 = action1.split('*')[1]
-            search(action1)
+            _search_yt(action1)
         else:
             sub_list(action1)
-    #close_item_list()
     setEndOfDirectory()
 
 #################### Dokus4.me ####################
@@ -90,7 +83,9 @@ def showGenre_1():
     setEndOfDirectory()
 
         
-def showEntries_1(entryUrl=False,sSearchText=False,bGlobal=False):
+def showEntries_1(entryUrl=False, sSearchText=False, bGlobal=False):
+    if bGlobal:
+        return
     params = ParameterHandler()
     if not entryUrl: entryUrl = params.getValue('sUrl')
     iPage = int(params.getValue('page'))
@@ -107,7 +102,7 @@ def showEntries_1(entryUrl=False,sSearchText=False,bGlobal=False):
             continue
         addDirectoryItem(sName, 'runPlugin&site=%s&function=showHosters_1&sThumbnail=%s&entryUrl=%s' % (SITE_NAME,sThumbnail, sUrl), SITE_ICON, 'DefaultMovies.png')
 
-    if not bGlobal and not sSearchText:
+    if not sSearchText:
         sPageNr = int(params.getValue('page'))
         if sPageNr == 0:
             sPageNr = 2
@@ -148,7 +143,6 @@ def _search_1(oGui, sSearchText):
 
 
 URL_MAIN = 'http://www.youtube.com'
-# URL_SEARCH = URL_MAIN + '?s=%s'
 
 channellist = [
     ("[COLORred]YouTube:[/COLOR] Kanäle", "Kanäle", "special://home/addons/plugin.video.lastship.reborn/resources/art/sites/kids_tube.png"),
@@ -368,16 +362,13 @@ def sub_list(action):
             addDirectoryItem(name, 'runPlugin&site=%s&function=load&action1=%s' % (SITE_NAME, action1), SITE_ICON, 'DefaultMovies.png')
         elif 'Suche' in id:
             addDirectoryItem(name, 'runPlugin&site=%s&function=load&action1=%s' % (SITE_NAME, action2), SITE_ICON, 'DefaultMovies.png')
-
         else:
             addDirectoryItem(name, sUrl, SITE_ICON, 'DefaultMovies.png',isAction=False)
-
 
     xbmcplugin.endOfDirectory(handle=int(sys.argv[1]), succeeded=True)
 
 
 def sub_listw(action):
-
     youtube_fix.YT()
     apikey = Addon('plugin.video.youtube').getSetting('youtube.api.key')
 
@@ -391,16 +382,14 @@ def sub_listw(action):
         else:
             sUrl="plugin://plugin.video.youtube/" + id + "/"
 
-        
         params.setParam('trumb', icon)
         params.setParam('sUrl', sUrl)
         addDirectoryItem(name, sUrl, SITE_ICON, 'DefaultMovies.png',isAction=False)
 
-        #cGui().addFolder(cGuiElement(name,SITE_IDENTIFIER,''),params,bIsFolder=True)
     xbmcplugin.endOfDirectory(handle=int(sys.argv[1]), succeeded=True)
 
 
-def search(action1):
+def _search_yt(action1):
     youtube_fix.YT()
     apikey = Addon('plugin.video.youtube').getSetting('youtube.api.key')
 
@@ -423,12 +412,11 @@ def search(action1):
             sUrl="plugin://plugin.video.youtube/" + id + "/?addon_id=plugin.video.lastship.reborn"
         else:
             sUrl="plugin://plugin.video.youtube/" + id + "/"
-        
+
         params.setParam('trumb', icon)
         params.setParam('sUrl', sUrl)
         addDirectoryItem(name, sUrl, SITE_ICON, 'DefaultMovies.png',isAction=False)
 
-        #cGui().addFolder(cGuiElement(name,SITE_IDENTIFIER,''),params,bIsFolder=True)
     xbmcplugin.endOfDirectory(handle=int(sys.argv[1]), succeeded=True)
 
 
