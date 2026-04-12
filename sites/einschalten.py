@@ -34,7 +34,7 @@ URL_THUMBNAIL = URL_MAIN + '/api/image/poster'
 
 def load():
     logger.info('Load %s' % SITE_NAME)
-    addDirectoryItem("Neue Filme", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_NEW_MOVIES), SITE_ICON, 'DefaultMovies.png')
+    #addDirectoryItem("Neue Filme", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_NEW_MOVIES), SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem("Neu hinzugefügt", 'runPlugin&site=%s&function=showEntriesLast&sUrl=%s' % (SITE_NAME, URL_LAST_MOVIES), SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem("Collectionen", 'runPlugin&site=%s&function=showCollections&sUrl=%s' % (SITE_NAME, URL_COLLECTIONS), SITE_ICON, 'DefaultTVShows.png')
     addDirectoryItem("Genre", 'runPlugin&site=%s&function=showGenre' % SITE_NAME, SITE_ICON, 'DefaultTVShows.png')
