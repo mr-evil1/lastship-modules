@@ -79,8 +79,7 @@ class source:
                     isBlocked, hoster, url, prioHoster = isBlockedHoster(streamUrl)
                     if isBlocked:
                         continue
-                    if url:
-                        self.sources.append({'source': hoster, 'quality': quality, 'language': 'de', 'url': url, 'direct': True, 'prioHoster': prioHoster})
+                    self.sources.append({'source': hoster, 'quality': quality, 'language': 'de', 'url': streamUrl, 'direct': False, 'prioHoster': prioHoster})
                 except Exception as e:
                     continue
             return self.sources
