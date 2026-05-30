@@ -4,11 +4,10 @@ import re, json
 from resources.lib.control import getSetting
 from resources.lib.requestHandler import cRequestHandler
 from scrapers.modules.tools import cParser
+import sys, os; sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..")); from resources.lib import log_utils
 
 SITE_IDENTIFIER = 'movie2k'
-import xbmc
-import sys, os; sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..")); from resources.lib import log_utils
-SITE_DOMAIN = 'movie2k.ch' 
+SITE_DOMAIN = 'movie2k.ch'
 SITE_NAME = SITE_IDENTIFIER.upper()
 
 class source:
@@ -17,22 +16,22 @@ class source:
         self.language = ['de']
         self.domain = getSetting('provider.' + SITE_IDENTIFIER + '.domain', SITE_DOMAIN)
         self.base_link = 'https://' + self.domain
-        self.search_link = 'https://movie2k.ch/data/browse/?lang=2&keyword=%s&year=%s&type=%s&page=1' 
+        self.search_link = self.base_link + '/data/search/?lang=2&keyword=%s'
+        self.watch_link = self.base_link + '/data/watch/?_id=%s'
         self.sources = []
 
     def run(self, titles, year, season=0, episode=0, imdb=''):
-        jSearch = self.search(titles, year, season, episode)
-        if jSearch == [] or jSearch == 0: return
+        jSearch = self.search(titles, year, season, episode, imdb)
+        if not jSearch:
+            return []
         jSearch = sorted(jSearch, key=lambda k: k.get('added', ''), reverse=True)
         total = 0
         loop = 0
         for i in range(len(jSearch)):
             sUrl = jSearch[i]['stream']
-            #if 'streamtape' in sUrl: continue
             loop += 1
             if loop == 50:
                 break
-
             release = jSearch[i].get('release', '')
             if '2160' in release or '4K' in release:
                 quality = '4K'
@@ -48,56 +47,90 @@ class source:
                 quality = '360p'
             else:
                 quality = 'HD'
-
             isBlocked, hoster, url, prioHoster = isBlockedHoster(sUrl)
-            if isBlocked: continue
+            if isBlocked:
+                continue
             if url:
                 self.sources.append({'source': hoster, 'quality': quality, 'language': 'de', 'url': url, 'direct': True, 'prioHoster': prioHoster})
                 total += 1
-                if total == 10: break
+                if total == 10:
+                    break
         return self.sources
 
     def resolve(self, url):
-        return  url
+        return url
 
-    def search(self, titles, year, season, episode):
-        jSearch = []
-        mtype = 'movies'
-        if season > 0:
-            year = ''
-            mtype = 'tvseries'
+    def _get_imdb_from_entry(self, entry):
+        try:
+            tmdb = entry.get('tmdb', {})
+            if isinstance(tmdb, str):
+                tmdb = json.loads(tmdb)
+            details = tmdb.get('movie', {})
+            if isinstance(details, list):
+                details = details[0] if details else {}
+            return details.get('movie_details', {}).get('imdb_id', '')
+        except Exception:
+            return ''
+
+    def search(self, titles, year, season, episode, imdb=''):
         for title in titles:
             try:
-                query = self.search_link % (title, year, mtype)
+                from urllib.parse import quote
+                query = self.search_link % quote(title)
                 oRequest = cRequestHandler(query)
-                Search = oRequest.request()
-                if '"success":false' in Search: continue
-                Search = re.sub(r'\\\s+\\', '\\\\',   Search)
-                jSearch = json.loads(Search)['movies']
-                if jSearch == []:  continue
+                raw = oRequest.request()
+                if not raw:
+                    continue
+                results = json.loads(raw)
+                if not isinstance(results, list) or not results:
+                    continue
+
+                _id = False
+
+                if imdb:
+                    for i in results:
+                        if i.get('imdb_id', '') == imdb or self._get_imdb_from_entry(i) == imdb:
+                            _id = i.get('_id', False)
+                            if _id:
+                                break
+
+                if not _id:
+                    if season > 0:
+                        for i in results:
+                            if not i.get('tv', 0):
+                                continue
+                            isMatch, sSeason = cParser.parseSingleResult(i.get('title', ''), r'Staffel.*?(\d+)')
+                            if sSeason == str(season):
+                                _id = i.get('_id', False)
+                                if _id:
+                                    break
+                        if not _id:
+                            for i in results:
+                                if i.get('tv', 0):
+                                    _id = i.get('_id', False)
+                                    if _id:
+                                        break
+                    else:
+                        for i in results:
+                            if i.get('tv', 0):
+                                continue
+                            if i.get('year') and str(i.get('year')) != str(year):
+                                continue
+                            _id = i.get('_id', False)
+                            if _id:
+                                break
+
+                if not _id:
+                    continue
+
+                oRequest = cRequestHandler(self.watch_link % _id)
+                watch = json.loads(oRequest.request())
+                streams = watch.get('streams', [])
+                if not streams:
+                    continue
                 if season > 0:
-                    for i in jSearch:
-                        isMatch, sSeason = cParser.parseSingleResult(i.get('title'), 'Staffel.*?(\d+)')
-                        if sSeason == str(season):
-                            id = i.get('_id', False)
-                            if id: break
-                else:
-                    for i in jSearch:
-                        if i.get('year', False) and  not i.get('year') == year: continue
-                        id = i.get('_id', False)
-                        if id: break
-                oRequest = cRequestHandler('https://movie2k.ch/data/watch/?_id=%s'  % id)
-                jSearch = json.loads(oRequest.request())
-                if season > 0:
-                    jSearch = jSearch['streams']
-                    jSearchNew = []
-                    for i in jSearch:
-                        if not i.get('e', False): continue
-                        elif not str(i.get('e')) == str(episode): continue
-                        jSearchNew.append(i)
-                    return jSearchNew
-                else:
-                    return jSearch['streams']
-            except:
+                    return [s for s in streams if str(s.get('e', '')) == str(episode)]
+                return streams
+            except Exception:
                 continue
-        return jSearch
+        return []
