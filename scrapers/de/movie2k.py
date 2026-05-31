@@ -28,7 +28,13 @@ class source:
         total = 0
         loop = 0
         for i in range(len(jSearch)):
-            sUrl = jSearch[i]['stream']
+            if jSearch[i].get('deleted', 0):
+                continue
+            sUrl = jSearch[i].get('stream', '')
+            if not sUrl:
+                continue
+            if sUrl.startswith('//'):
+                sUrl = 'https:' + sUrl
             loop += 1
             if loop == 50:
                 break
@@ -90,6 +96,8 @@ class source:
                 if imdb:
                     for i in results:
                         if i.get('imdb_id', '') == imdb or self._get_imdb_from_entry(i) == imdb:
+                            if season > 0 and str(i.get('s', '')) != str(season):
+                                continue
                             _id = i.get('_id', False)
                             if _id:
                                 break
