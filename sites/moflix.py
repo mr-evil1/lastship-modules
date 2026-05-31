@@ -305,14 +305,26 @@ def getHosters(bGlobal=False):
         sHoster=cParser.urlparse(streamUrl)
         t += 100 / len(aResults)
         if isProgressDialog: progressDialog.update(int(t), '[CR]Überprüfe Stream von ' + sHoster)
-        Request = cRequestHandler(streamUrl, caching=False)
-        Request.request()
-        sUrl = Request.getRealUrl()
-        if sUrl:
-            streamUrl=str(sUrl)
+        isResolved = False
+        try:
+            import resolveurl
+            if resolveurl.HostedMediaFile(streamUrl).valid_url():
+                resolved = resolveurl.resolve(streamUrl)
+                if resolved:
+                    streamUrl = resolved
+                    isResolved = True
+        except Exception:
+            pass
+        if not isResolved:
+            if not isBlockedHoster(streamUrl):
+                Request = cRequestHandler(streamUrl, caching=False)
+                Request.request()
+                sUrl = Request.getRealUrl()
+                if sUrl:
+                    streamUrl=str(sUrl)
         if 'outube' in sHoster:
             sHoster=sHoster.split('.')[0]+' Trailer'
-        items.append((sName, infoTitle, meta, False, streamUrl, sThumbnail))
+        items.append((sName, infoTitle, meta, isResolved, streamUrl, sThumbnail))
     if isProgressDialog:  progressDialog.close()
     url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
     execute('Container.Update(%s)' % url)
