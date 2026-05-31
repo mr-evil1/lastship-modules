@@ -33,8 +33,12 @@ class source:
             'upstream':    5,
             'streamruby': 10,
             'vidguard':    6,
+            # vom Nutzer bestätigte funktionierende Hoster
+            'myvidplay':   8,
+            'dsvplay':     7,
+            'playmono':    7,
         }
-        self.min_priority  = 0   # 0 = alle Hoster zulassen
+        self.min_priority  = 1   # nur Hoster aus hoster_priority zulassen
         self.max_per_hoster = 5
 
     # ------------------------------------------------------------------ run --
@@ -161,11 +165,6 @@ class source:
                 })
 
             sources = sorted(sources, key=lambda x: x.get('priority', 0), reverse=True)
-
-            # --- Parallele Hoster-Prüfung -----------------------------------
-            sources = self._filter_live_sources(sources)
-            # ----------------------------------------------------------------
-
             return sources
         except:
             return []
@@ -239,15 +238,17 @@ class source:
 
     def _filter_live_sources(self, sources):
         """
-        Filtert tote Hoster-URLs parallel heraus.
+        Filtert nicht erreichbare Hoster-URLs parallel heraus (HTTP-Check).
         Reihenfolge (Priority-Sort) bleibt erhalten.
+        Unbekannte Hoster (priority=0) wurden bereits in run() durch
+        min_priority=1 ausgeschlossen — hier kommen nur noch bekannte an.
         """
         if not sources:
             return sources
         try:
             from concurrent.futures import ThreadPoolExecutor, as_completed
 
-            results = {}   # index → bool
+            results = {}
             with ThreadPoolExecutor(max_workers=self._CHECK_WORKERS) as pool:
                 futures = {
                     pool.submit(self._check_url, s['url']): i
@@ -262,7 +263,6 @@ class source:
 
             return [s for i, s in enumerate(sources) if results.get(i, False)]
         except Exception:
-            # Wenn Threading nicht verfügbar ist, ungefiltertes Original zurück
             return sources
 
     # -------------------------------------------------- hoster-spezifisch --
@@ -435,5 +435,3 @@ class source:
                 pass
 
         return url
-
-                
