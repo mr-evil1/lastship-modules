@@ -145,15 +145,26 @@ def _diskCacheWrite(filename, content):
     except Exception as e:
         log_utils.log('Disk cache write error: %s' % str(e), log_utils.LOGWARNING, SITE_IDENTIFIER)
 
-def _fetchPage(url):
-    oRequest = cRequestHandler(url, ignoreErrors=True, caching=False)
-    sContent = oRequest.request()
-    if isinstance(sContent, bytes):
+def _fetchPage(url, timeout=12):
+    """Fetch a page using _session directly (bypasses the DoH resolver in cRequestHandler,
+    which causes 20+ second timeouts when used with a raw IP address)."""
+    try:
+        resp = _session.get(url, timeout=timeout, allow_redirects=True)
+        resp.raise_for_status()
+        return resp.text
+    except Exception as e:
+        log_utils.log('_fetchPage error for %s: %s' % (url, str(e)), log_utils.LOGWARNING, SITE_IDENTIFIER)
         try:
-            sContent = sContent.decode('utf-8')
+            oRequest = cRequestHandler(url, ignoreErrors=True, caching=False)
+            sContent = oRequest.request()
+            if isinstance(sContent, bytes):
+                try:
+                    sContent = sContent.decode('utf-8')
+                except:
+                    sContent = str(sContent)
+            return sContent
         except:
-            sContent = str(sContent)
-    return sContent
+            return None
 
 def _slugFromUrl(url):
     return url.rstrip('/').split('/')[-1].split('?')[0]
@@ -251,6 +262,31 @@ def _prewarm():
             log_utils.log('Prewarm error: %s' % str(e), log_utils.LOGWARNING, SITE_IDENTIFIER)
     threading.Thread(target=_run, daemon=True).start()
 
+def _prefetchCatalogPages(urls):
+    """Fetch catalog letter pages in parallel background threads and write to disk cache.
+    Called after allSeries() so letter pages are ready before the user clicks one."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _fetch_one(url):
+        cache_key = 'entries_%s.html' % abs(hash(url))
+        if _diskCacheRead(cache_key):
+            return
+        try:
+            content = _fetchPage(url)
+            if content:
+                _diskCacheWrite(cache_key, content)
+                log_utils.log('Prefetched catalog: %s' % url, log_utils.LOGINFO, SITE_IDENTIFIER)
+        except Exception as e:
+            log_utils.log('Prefetch error %s: %s' % (url, str(e)), log_utils.LOGWARNING, SITE_IDENTIFIER)
+
+    def _run_all():
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            list(ex.map(_fetch_one, urls))
+
+    import threading
+    threading.Thread(target=_run_all, daemon=True).start()
+
+
 def allSeries():
     _init()
     log_utils.log('========== allSeries ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
@@ -258,15 +294,12 @@ def allSeries():
     sUrl = params.getValue('sUrl')
     sCont = params.getValue('sCont')
 
-    oRequest = cRequestHandler(sUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 24
-    sHtmlContent = oRequest.request()
-
-    if isinstance(sHtmlContent, bytes):
-        try:
-            sHtmlContent = sHtmlContent.decode('utf-8')
-        except:
-            sHtmlContent = str(sHtmlContent)
+    cache_key = 'allseries_%s.html' % abs(hash(sUrl))
+    sHtmlContent = _diskCacheRead(cache_key)
+    if not sHtmlContent:
+        sHtmlContent = _fetchPage(sUrl)
+        if sHtmlContent:
+            _diskCacheWrite(cache_key, sHtmlContent)
 
     isMatch = False
     aResult = []
@@ -315,6 +348,11 @@ def allSeries():
 
     _setEndOfDirectory()
 
+    if sCont == 'catalogNav' and aResult:
+        catalog_urls = [_abs_url(u) for u, _ in aResult if '/katalog/' in u]
+        if catalog_urls:
+            _prefetchCatalogPages(catalog_urls)
+
 def showNewEpisodes(entryUrl=False):
     _init()
     log_utils.log('========== showNewEpisodes ==========', log_utils.LOGINFO, SITE_IDENTIFIER)
@@ -325,15 +363,7 @@ def showNewEpisodes(entryUrl=False):
     if not entryUrl:
         entryUrl = URL_HOME
 
-    oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 4
-    sHtmlContent = oRequest.request()
-
-    if isinstance(sHtmlContent, bytes):
-        try:
-            sHtmlContent = sHtmlContent.decode('utf-8')
-        except:
-            sHtmlContent = str(sHtmlContent)
+    sHtmlContent = _fetchPage(entryUrl)
 
     thumbMap = {}
     thumb_pattern = r'<a[^>]*href="([^"]*/serie/([^"/]+))"[^>]*>[\s\S]*?<img[^>]*(?:data-src|src)="([^"]+)"'
@@ -675,15 +705,12 @@ def showAllSeries(entryUrl=False, sSearchText=False):
 
     letter = params.getValue('letter')
 
-    oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
-    oRequest.cacheTime = 60 * 60 * 24
-    sHtmlContent = oRequest.request()
-
-    if isinstance(sHtmlContent, bytes):
-        try:
-            sHtmlContent = sHtmlContent.decode('utf-8')
-        except:
-            sHtmlContent = str(sHtmlContent)
+    _as_cache_key = 'allseries_list_%s.html' % abs(hash(entryUrl))
+    sHtmlContent = _diskCacheRead(_as_cache_key)
+    if not sHtmlContent:
+        sHtmlContent = _fetchPage(entryUrl)
+        if sHtmlContent:
+            _diskCacheWrite(_as_cache_key, sHtmlContent)
 
     aResult = []
 
@@ -792,14 +819,7 @@ def showEntries(entryUrl=False):
     else:
         sHtmlContent = _diskCacheRead('entries_%s.html' % abs(hash(entryUrl)))
         if not sHtmlContent:
-            oRequest = cRequestHandler(entryUrl, ignoreErrors=True)
-            oRequest.cacheTime = 60 * 60 * 6
-            sHtmlContent = oRequest.request()
-            if isinstance(sHtmlContent, bytes):
-                try:
-                    sHtmlContent = sHtmlContent.decode('utf-8')
-                except:
-                    sHtmlContent = str(sHtmlContent)
+            sHtmlContent = _fetchPage(entryUrl)  
             if sHtmlContent:
                 _diskCacheWrite('entries_%s.html' % abs(hash(entryUrl)), sHtmlContent)
 
@@ -924,14 +944,7 @@ def showSeasons():
     sTVShowTitle = params.getValue('TVShowTitle')
     sThumbnailFromList = params.getValue('sThumbnail') or ''
 
-    oRequest = cRequestHandler(sUrl)
-    sHtmlContent = oRequest.request()
-
-    if isinstance(sHtmlContent, bytes):
-        try:
-            sHtmlContent = sHtmlContent.decode('utf-8')
-        except:
-            sHtmlContent = str(sHtmlContent)
+    sHtmlContent = _fetchPage(sUrl) 
 
     pattern = r'<a[^>]*href="([^"]*/staffel-\d+)"[^>]*data-season-pill="(\d+)"[^>]*>\s*(\d+)\s*<'
     isMatch, aResult = cParser.parse(sHtmlContent, pattern)
@@ -986,15 +999,7 @@ def showEpisodes():
 
     isMovieList = sUrl.endswith('filme')
 
-    oRequest = cRequestHandler(sUrl)
-    oRequest.cacheTime = 60 * 60 * 4
-    sHtmlContent = oRequest.request()
-
-    if isinstance(sHtmlContent, bytes):
-        try:
-            sHtmlContent = sHtmlContent.decode('utf-8')
-        except:
-            sHtmlContent = str(sHtmlContent)
+    sHtmlContent = _fetchPage(sUrl)
 
     pattern = r'onclick="window.location=\'([^\']+)\'".*?episode-number-cell">\s*(\d+).*?episode-title-ger"[^>]*>([^<]*)<.*?episode-title-eng"[^>]*>([^<]*)<'
     isMatch, aResult = cParser.parse(sHtmlContent, pattern)
@@ -1058,14 +1063,7 @@ def getHosters():
     if not sUrl:
         return
 
-    oRequest = cRequestHandler(sUrl, caching=False)
-    sHtmlContent = oRequest.request()
-
-    if isinstance(sHtmlContent, bytes):
-        try:
-            sHtmlContent = sHtmlContent.decode('utf-8')
-        except:
-            sHtmlContent = str(sHtmlContent)
+    sHtmlContent = _fetchPage(sUrl) 
 
     progressDialog.create('SerienStream', 'Suche Streams...')
 
@@ -1078,38 +1076,48 @@ def getHosters():
 
     items = []
     sLanguage = getSetting('prefLanguage', '0')
-    t = 0
 
     LANG_FILTER_MAP = {'1': '1', '2': '2', '3': '4'}
 
+    def _lang_label(sLang):
+        return {1: ' (DE)', 2: ' (EN)', 3: ' (EN/DE-Sub)', 4: ' (JP)'}.get(int(sLang) if sLang.isdigit() else -1, '')
+
+    filtered = []
     for sHosterUrl, sName, sLang in aResult:
         if sLanguage in LANG_FILTER_MAP and sLang != LANG_FILTER_MAP[sLanguage]:
             continue
+        filtered.append((sHosterUrl, sName, sLang))
 
-        if sLang == '1':
-            sLangLabel = ' (DE)'
-        elif sLang == '2':
-            sLangLabel = ' (EN)'
-        elif sLang == '3':
-            sLangLabel = ' (EN/DE-Sub)'
-        elif sLang == '4':
-            sLangLabel = ' (JP)'
-        else:
-            sLangLabel = ''
+    progressDialog.update(5, 'Löse Streams parallel auf...')
 
+    resolved_items = [None] * len(filtered)
+
+    def _resolve_one(idx_and_entry):
+        idx, (sHosterUrl, sName, sLang) = idx_and_entry
         try:
             hurl = getHosterUrl([sHosterUrl, sName])
             streamUrl = hurl[0]['streamUrl']
             isResolve = hurl[0]['resolved']
-
-            t += 100 / len(aResult)
-            progressDialog.update(int(t), sName + sLangLabel)
-
             if not isBlockedHoster(streamUrl)[0]:
-                displayName = sName + sLangLabel
-                items.append((displayName, displayName, meta, isResolve, streamUrl, meta.get('sThumbnail', '')))
+                label = sName + _lang_label(sLang)
+                resolved_items[idx] = (label, label, meta, isResolve, streamUrl, meta.get('sThumbnail', ''))
         except:
-            continue
+            pass
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    total = max(len(filtered), 1)
+    completed = [0]
+    lock = __import__('threading').Lock()
+
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        futures = {ex.submit(_resolve_one, (i, entry)): i for i, entry in enumerate(filtered)}
+        for fut in as_completed(futures):
+            with lock:
+                completed[0] += 1
+                pct = 5 + int(90 * completed[0] / total)
+            progressDialog.update(pct, 'Streams werden aufgelöst...')
+
+    items = [r for r in resolved_items if r is not None]
 
     progressDialog.close()
 
