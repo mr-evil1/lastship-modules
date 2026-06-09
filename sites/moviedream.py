@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import json, sys, re, base64, hashlib, struct
 import xbmcgui
 from resources.lib.ParameterHandler import ParameterHandler
@@ -117,7 +116,7 @@ def _mul(a,b):
     r=0
     for _ in range(8):
         if b&1: r^=a
-        hi=a&0x80; a=((a<<1)&0xff); 
+        hi=a&0x80; a=((a<<1)&0xff);
         if hi: a^=0x1b
         b>>=1
     return r
@@ -180,19 +179,17 @@ def _pure_python_aes_cbc_decrypt(key, iv, ciphertext):
         dec=_aes_decrypt_block(blk, rks, nr)
         out+=bytes(a^b for a,b in zip(dec,prev))
         prev=blk
-
     pad=out[-1]
     return out[:-pad]
 
 
-
-def _evp_bytes_to_key(password_bytes, salt_bytes, key_len=32, iv_len=16):
-    """OpenSSL EVP_BytesToKey mit MD5 – identisch zu CryptoJS EvpKDF"""
-    d, d_i = b'', b''
-    while len(d) < key_len + iv_len:
-        d_i = hashlib.md5(d_i + password_bytes + salt_bytes).digest()
-        d += d_i
-    return d[:key_len], d[key_len:key_len + iv_len]
+def _evp_bytes_to_key(password_bytes, salt_bytes, dklen=48):
+    d = b''
+    prev = b''
+    while len(d) < dklen:
+        prev = hashlib.md5(prev + password_bytes + salt_bytes).digest()
+        d += prev
+    return d[:dklen]
 
 
 def _cryptojs_decrypt(enc_json_raw, password):
@@ -203,7 +200,8 @@ def _cryptojs_decrypt(enc_json_raw, password):
         ct    = base64.b64decode(data['ct'])
         iv    = bytes.fromhex(data['iv'])
         salt  = bytes.fromhex(data['s'])
-        key, _ = _evp_bytes_to_key(password.encode('utf-8'), salt)
+        kiv   = _evp_bytes_to_key(password.encode('utf-8'), salt, dklen=48)
+        key   = kiv[:32]
         log('[%s] _cryptojs_decrypt: key=%s iv=%s HAS_CRYPTO=%s' % (SITE_NAME, key.hex(), iv.hex(), HAS_CRYPTO), LOGDEBUG)
         if HAS_CRYPTO:
             cipher = _AES.new(key, _AES.MODE_CBC, iv)
@@ -216,15 +214,17 @@ def _cryptojs_decrypt(enc_json_raw, password):
         logger.error('moviedream _cryptojs_decrypt: %s' % str(e))
         log('[%s] _cryptojs_decrypt: Fehler: %s' % (SITE_NAME, str(e)), LOGDEBUG)
         return None
+
+
 def load():
     log('[%s] Load %s' % (SITE_NAME, SITE_NAME), LOGDEBUG)
     logger.info('Load %s' % SITE_NAME)
     addDirectoryItem('Kino',      'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_KINO),      SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem('Filme',     'runPlugin&site=%s&function=showMovieMenu'       % SITE_NAME,                  SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem('Serien',    'runPlugin&site=%s&function=showSeriesMenu'      % SITE_NAME,                  SITE_ICON, 'DefaultTVShows.png')
-    addDirectoryItem('Wunschbox', 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_WUNSCHBOX), SITE_ICON, 'DefaultFavourites.png')
     addDirectoryItem('Suche',     'runPlugin&site=%s&function=showSearch'          % SITE_NAME,                  SITE_ICON, 'DefaultAddonsSearch.png')
     setEndOfDirectory()
+
 
 
 def showMovieMenu():
@@ -244,6 +244,7 @@ def showMovieGenres():
     setEndOfDirectory()
 
 
+
 def showSeriesMenu():
     log('[%s] showSeriesMenu called' % SITE_NAME, LOGDEBUG)
     addDirectoryItem('Neueste', 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_SERIES_NEW),    SITE_ICON, 'DefaultTVShows.png')
@@ -261,10 +262,6 @@ def showSeriesGenres():
     setEndOfDirectory()
 
 def _getNextPageUrl(sHtml, entryUrl):
-    """Pagination: moviedream.cx nutzt ?p=N (z.B. href="?p=2").
-    Liest aktuelle Seitenzahl aus 'pagenumberselected' und gibt ?p=N+1 zurueck.
-    Bricht ab wenn 'righter' versteckt ist (letzte Seite).
-    """
     m_last = re.search(r'if\s*\(\s*(\d+)\s*==\s*(\d+)\s*\)\s*\{\s*\$\(["\']\.righter', sHtml)
     if m_last:
         current = int(m_last.group(1))
@@ -273,7 +270,6 @@ def _getNextPageUrl(sHtml, entryUrl):
         if current >= last:
             log('[%s] _getNextPageUrl: letzte Seite erreicht' % SITE_NAME, LOGDEBUG)
             return None
-
         nextP = current + 1
     else:
         m_cur = re.search(r'class="pagenumberselected"[^>]*href="\?p=(\d+)"', sHtml)
@@ -282,11 +278,11 @@ def _getNextPageUrl(sHtml, entryUrl):
             return None
         nextP = int(m_cur.group(1)) + 1
 
-
     baseUrl = re.sub(r'\?p=\d+', '', entryUrl).rstrip('?')
     nextUrl = baseUrl + '?p=%d' % nextP
     log('[%s] _getNextPageUrl: naechste Seite -> %s' % (SITE_NAME, nextUrl), LOGDEBUG)
     return nextUrl
+
 
 def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
     log('[%s] showEntries called - entryUrl: %s, sSearchText: %s, bGlobal: %s' % (SITE_NAME, entryUrl, sSearchText, bGlobal), LOGDEBUG)
@@ -305,7 +301,6 @@ def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
         return
 
     log('[%s] showEntries: HTML Content Laenge: %d' % (SITE_NAME, len(sHtmlContent)), LOGDEBUG)
-
 
     pattern = (r'<a[^>]*class="linkto"[^>]*href="((?:film|serie)/[^"]+)"[^>]*>'
                r'[\s\S]*?<div[^>]*class="imgboxwiths"[^>]*>'
@@ -363,7 +358,6 @@ def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
 
     if bGlobal: return
 
-
     if not sSearchText:
         sNextUrl = _getNextPageUrl(sHtmlContent, entryUrl)
         if sNextUrl and sNextUrl != entryUrl:
@@ -373,6 +367,8 @@ def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
             log('[%s] showEntries: Keine naechste Seite gefunden' % SITE_NAME, LOGDEBUG)
 
     setEndOfDirectory()
+
+
 
 def _getMovieMeta(sHtml):
     log('[%s] _getMovieMeta called' % SITE_NAME, LOGDEBUG)
@@ -448,11 +444,11 @@ def showSeasons():
     sPlot      = _buildPlot(detailMeta, meta.get('infoTitle', ''))
     if detailMeta.get('poster'): meta['poster'] = detailMeta['poster']
 
-    isMatch, aSeasons = cParser.parse(sHtmlContent, r'data-sid="(\d+)"')
-    log('[%s] showSeasons: data-sid Match: %s -> %s' % (SITE_NAME, isMatch, aSeasons if isMatch else []), LOGDEBUG)
+    isMatch, aSeasons = cParser.parse(sHtmlContent, r'id="seasonbutton(\d+)"')
+    log('[%s] showSeasons: seasonbutton Match: %s -> %s' % (SITE_NAME, isMatch, aSeasons if isMatch else []), LOGDEBUG)
     if not isMatch:
-        isMatch, aSeasons = cParser.parse(sHtmlContent, r'href="serie/[^/]+/\w+/S(\d+)"')
-        log('[%s] showSeasons: Fallback Match: %s -> %s' % (SITE_NAME, isMatch, aSeasons if isMatch else []), LOGDEBUG)
+        isMatch, aSeasons = cParser.parse(sHtmlContent, r'href="[^"]+/staffel-(\d+)"')
+        log('[%s] showSeasons: staffel-href Fallback: %s -> %s' % (SITE_NAME, isMatch, aSeasons if isMatch else []), LOGDEBUG)
     if not isMatch:
         aSeasons = ['1']
         log('[%s] showSeasons: Keine Staffeln, nutze [1]' % SITE_NAME, LOGDEBUG)
@@ -474,6 +470,7 @@ def showSeasons():
     xsDirectory(items, SITE_NAME)
     setEndOfDirectory(sorted=True)
 
+
 def showEpisodes():
     log('[%s] showEpisodes called' % SITE_NAME, LOGDEBUG)
     sUrl    = params.getValue('entryUrl')
@@ -481,19 +478,18 @@ def showEpisodes():
     sSeason = meta['season']
     log('[%s] showEpisodes: URL: %s, Staffel: %s' % (SITE_NAME, sUrl, sSeason), LOGDEBUG)
 
-    oRequest = cRequestHandler(sUrl)
+    sStaffelUrl = sUrl.rstrip('/') + '/staffel-' + str(sSeason)
+    log('[%s] showEpisodes: Staffel-URL: %s' % (SITE_NAME, sStaffelUrl), LOGDEBUG)
+
+    oRequest = cRequestHandler(sStaffelUrl)
     oRequest.addHeaderEntry('User-Agent', UA)
     oRequest.cacheTime = 60 * 60 * 12
     sHtmlContent = oRequest.request()
-    log('[%s] showEpisodes: HTML Laenge: %d' % (SITE_NAME, len(sHtmlContent)), LOGDEBUG)
+    log('[%s] showEpisodes: HTML Laenge: %d' % (SITE_NAME, len(sHtmlContent) if sHtmlContent else 0), LOGDEBUG)
 
-    pattern = r'href="(serie/[^"]*[?&]s=%s&e=(\d+)[^"]*)"' % re.escape(str(sSeason))
+    pattern = r'href="(/serie/[^"]+/staffel-%s/episode-(\d+))"' % re.escape(str(sSeason))
     isMatch, aResult = cParser.parse(sHtmlContent, pattern)
-    log('[%s] showEpisodes: Pattern1 Match: %s, Treffer: %d' % (SITE_NAME, isMatch, len(aResult) if isMatch else 0), LOGDEBUG)
-    if not isMatch:
-        pattern = r'href="(serie/[^/]+/\w+/S0*%sE(\d+)[^"]*)"' % re.escape(str(sSeason))
-        isMatch, aResult = cParser.parse(sHtmlContent, pattern)
-        log('[%s] showEpisodes: Pattern2 Match: %s, Treffer: %d' % (SITE_NAME, isMatch, len(aResult) if isMatch else 0), LOGDEBUG)
+    log('[%s] showEpisodes: Pattern Match: %s, Treffer: %d' % (SITE_NAME, isMatch, len(aResult) if isMatch else 0), LOGDEBUG)
 
     if not isMatch:
         log('[%s] showEpisodes: Keine Episoden Staffel %s' % (SITE_NAME, sSeason), LOGDEBUG)
@@ -502,7 +498,7 @@ def showEpisodes():
 
     items = []
     for sEpRelUrl, sEpisode in aResult:
-        sEpUrl = URL_MAIN + '/' + sEpRelUrl.lstrip('/')
+        sEpUrl = URL_MAIN + sEpRelUrl
         item = {}
         item.setdefault('title',     'Folge ' + sEpisode)
         item.setdefault('entryUrl',  sEpUrl)
@@ -511,6 +507,7 @@ def showEpisodes():
         item.setdefault('episode',   int(sEpisode))
         item.setdefault('infoTitle', meta.get('infoTitle', ''))
         item.setdefault('isTvshow',  True)
+        item.setdefault('sFunction', 'getHosters')
         item.setdefault('plot',      meta.get('plot', ''))
         items.append(item)
         log('[%s] showEpisodes: Folge %s -> %s' % (SITE_NAME, sEpisode, sEpUrl), LOGDEBUG)
@@ -559,23 +556,23 @@ def getHosters():
         meta.setdefault('mediatype', 'movie')
 
     log('[%s] getHosters: Titel: %s' % (SITE_NAME, sTitle), LOGDEBUG)
-
-
-    enc_list_pat = r"CryptoJSAesJson\.decrypt\s*\(\s*'(\{[^']+\})'\s*,\s*'[^']+'\s*\)"
+    enc_list_pat = r"CryptoJSAesJson\.decrypt\s*\(\s*'(\{(?:[^'\\]|\\.)+\})'\s*,\s*'[^']+'\s*\)"
     isMatch, enc_jsons = cParser.parse(sHtmlContent, enc_list_pat)
-    log('[%s] getHosters: CryptoJS-Bloecke: Match=%s Anzahl=%d' % (SITE_NAME, isMatch, len(enc_jsons) if isMatch else 0), LOGDEBUG)
 
-    _, logo_names = cParser.parse(sHtmlContent, r'hosterlogos/([^\'"]+?)(?:HD)?\.png')
+    log('[%s] getHosters: CryptoJS-Bloecke: Match=%s Anzahl=%d' % (SITE_NAME, isMatch, len(enc_jsons) if isMatch else 0), LOGDEBUG)
+    _, logo_names = cParser.parse(sHtmlContent, r"hosterlogos/([A-Za-z0-9_-]+?)(?:HD)?\.png")
     log('[%s] getHosters: Logos gefunden: %s' % (SITE_NAME, logo_names), LOGDEBUG)
 
     aResult = []
     if isMatch:
         for i, enc_json in enumerate(enc_jsons):
             log('[%s] getHosters: Entschluessel Block %d: %s...' % (SITE_NAME, i, enc_json[:50]), LOGDEBUG)
-            decrypted = _cryptojs_decrypt(enc_json, CRYPTO_KEY)
+            decrypted = _cryptojs_decrypt(str(enc_json), CRYPTO_KEY)
+            if decrypted:
+                decrypted = decrypted.strip().strip('"').replace('\\/', '/')
             hname = logo_names[i] if i < len(logo_names) else 'Unknown'
-            if decrypted and decrypted.startswith('http'):
-                aResult.append((decrypted.strip(), hname))
+            if decrypted.startswith('http'):
+                aResult.append((decrypted, hname))
                 log('[%s] getHosters: OK Hoster=%s URL=%s' % (SITE_NAME, hname, decrypted[:60]), LOGDEBUG)
             else:
                 log('[%s] getHosters: Entschluesselung fehlgeschlagen: %s' % (SITE_NAME, hname), LOGDEBUG)
@@ -616,15 +613,18 @@ def getHosters():
 
         if isResolve:
             isBlocked, resolvedUrl = isBlockedHoster(resolvedUrl, resolve=isResolve)
+            if not resolvedUrl:
+                resolvedUrl = sHosterUrl
             log('[%s] getHosters: isBlocked=%s resolvedUrl=%s' % (SITE_NAME, isBlocked, resolvedUrl), LOGDEBUG)
-            if isBlocked:
-                log('[%s] getHosters: Blockiert: %s' % (SITE_NAME, hoster), LOGDEBUG)
-                continue
+            #if isBlocked:
+                #log('[%s] getHosters: Blockiert: %s' % (SITE_NAME, hoster), LOGDEBUG)
+                #continue
         elif isBlockedHoster(hoster)[0]:
             log('[%s] getHosters: Label blockiert: %s' % (SITE_NAME, hoster), LOGDEBUG)
             continue
 
-        items.append((hoster, sTitle, meta, isResolve, resolvedUrl, sThumbnail))
+        slim_meta = {k: meta[k] for k in ('infoTitle', 'title', 'poster', 'isTvshow', 'season', 'episode', 'mediatype', 'year', 'rating') if k in meta}
+        items.append((hoster, sTitle, slim_meta, isResolve, resolvedUrl, sThumbnail))
         log('[%s] getHosters: Hinzugefuegt: %s' % (SITE_NAME, hoster), LOGDEBUG)
 
     if isProgressDialog: progressDialog.close()
@@ -679,7 +679,6 @@ def _hosterNameFromUrl(url):
     for name in ('videzz', 'doodcdn', 'dood', 'vinovo', 'vidoza', 'streamtape', 'voe', 'mixdrop'):
         if name in url: return name.capitalize()
     return 'Unknown'
-
 
 def showSearch():
     log('[%s] showSearch called' % SITE_NAME, LOGDEBUG)
