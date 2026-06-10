@@ -40,7 +40,7 @@ URL_SERIES_NEW    = URL_MAIN + '/neueserien'
 URL_SERIES_TOP    = URL_MAIN + '/beliebteserien'
 URL_SERIES_RANDOM = URL_MAIN + '/zufallsserie'
 URL_WUNSCHBOX     = URL_MAIN + '/wunschbox'
-URL_SEARCH        = URL_MAIN + '/suchergebnisse.php?text=%s&sprache=Deutsch'
+URL_SEARCH        = URL_MAIN + '/searchy.php?ser=%s'
 
 CRYPTO_KEY = 'a2mZz5S76@2s'
 
@@ -340,12 +340,14 @@ def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
         if bGlobal: sName = SITE_NAME + ' - ' + sName
 
         item = {}
-        item.setdefault('infoTitle', infoTitle)
-        item.setdefault('title',     sName)
-        item.setdefault('entryUrl',  sUrl)
-        item.setdefault('isTvshow',  isTvshow)
-        item.setdefault('poster',    sThumbnail)
-        item.setdefault('plot',      '[B][COLOR blue]%s[/COLOR][/B][CR]%s[CR]' % (SITE_NAME, infoTitle))
+        item.setdefault('infoTitle',  infoTitle)
+        item.setdefault('title',      sName)
+        item.setdefault('entryUrl',   sUrl)
+        item.setdefault('isTvshow',   True)
+        item.setdefault('poster',     sThumbnail)
+        item.setdefault('sFunction',  'showSeasons' if isTvshow else 'showHosters')
+        item.setdefault('mediatype',  'tvshow' if isTvshow else 'movie')
+        item.setdefault('plot',       '[B][COLOR blue]%s[/COLOR][/B][CR]%s[CR]' % (SITE_NAME, infoTitle))
         items.append(item)
 
     if not items:
@@ -401,13 +403,19 @@ def _getMovieMeta(sHtml):
         if not p.startswith('http'):
             p = URL_MAIN + '/' + p.lstrip('.').lstrip('/')
         meta['poster'] = p
-    isM, v = cParser.parseSingleResult(sHtml, r'<p\s[^>]*style="font-size:\s*16px[^"]*"[^>]*>([^<]+)</p>')
+    isM, v = cParser.parseSingleResult(sHtml, r'<p[^>]*style="[^"]*font-size:\s*16px[^"]*"[^>]*>([^<]+)</p>')
     if not isM:
-        isM, v = cParser.parseSingleResult(sHtml, r'<p\s[^>]*style="font-size:\s*16px[^"]*"[^>]*>(.*?)</p>')
+        isM, v = cParser.parseSingleResult(sHtml, r'<p[^>]*style="[^"]*font-size:\s*16px[^"]*"[^>]*>([\s\S]*?)</p>')
+    if not isM:
+        isM, v = cParser.parseSingleResult(sHtml, r'<p[^>]*class="[^"]*(?:plot|description|text|inhalt|handlung)[^"]*"[^>]*>([\s\S]*?)</p>')
     if isM:
-        try: v = unescape(v.strip())
+        try:
+            v = re.sub(r'<[^>]+>', '', v).strip()
+            v = unescape(v)
         except: pass
-        meta['plot'] = v
+        if v:
+            meta['plot'] = v
+    log('[%s] _getMovieMeta: plot Match=%s' % (SITE_NAME, isM), LOGDEBUG)
     log('[%s] _getMovieMeta: Ergebnis: %s' % (SITE_NAME, str(meta)), LOGDEBUG)
     return meta
 
@@ -507,7 +515,7 @@ def showEpisodes():
         item.setdefault('episode',   int(sEpisode))
         item.setdefault('infoTitle', meta.get('infoTitle', ''))
         item.setdefault('isTvshow',  True)
-        item.setdefault('sFunction', 'getHosters')
+        item.setdefault('sFunction', 'showHosters')
         item.setdefault('plot',      meta.get('plot', ''))
         items.append(item)
         log('[%s] showEpisodes: Folge %s -> %s' % (SITE_NAME, sEpisode, sEpUrl), LOGDEBUG)
@@ -517,36 +525,30 @@ def showEpisodes():
     setEndOfDirectory()
 
 
-def getHosters():
-    log('[%s] getHosters called' % SITE_NAME, LOGDEBUG)
+def showHosters():
+    log('[%s] showHosters called' % SITE_NAME, LOGDEBUG)
     isProgressDialog = True
-    isResolve        = True
     items            = []
 
     sUrl = params.getValue('entryUrl')
     if sUrl.startswith('//'): sUrl = 'https:' + sUrl
-    log('[%s] getHosters: URL: %s' % (SITE_NAME, sUrl), LOGDEBUG)
+    log('[%s] showHosters: URL: %s' % (SITE_NAME, sUrl), LOGDEBUG)
 
     oRequest = cRequestHandler(sUrl)
     oRequest.addHeaderEntry('User-Agent', UA)
     oRequest.addHeaderEntry('Referer', URL_MAIN + '/')
     oRequest.cacheTime = 0
     sHtmlContent = oRequest.request()
-    log('[%s] getHosters: HTML Laenge: %d' % (SITE_NAME, len(sHtmlContent) if sHtmlContent else 0), LOGDEBUG)
+    log('[%s] showHosters: HTML Laenge: %d' % (SITE_NAME, len(sHtmlContent) if sHtmlContent else 0), LOGDEBUG)
 
     detailMeta = _getMovieMeta(sHtmlContent)
     meta       = json.loads(params.getValue('meta'))
-    log('[%s] getHosters: Meta: %s' % (SITE_NAME, str(meta)), LOGDEBUG)
+    log('[%s] showHosters: Meta: %s' % (SITE_NAME, str(meta)), LOGDEBUG)
 
-    if detailMeta.get('poster'):   meta['poster']   = detailMeta['poster']
-    if detailMeta.get('year'):     meta['year']     = detailMeta['year']
-    if detailMeta.get('genre'):    meta['genre']    = detailMeta['genre']
-    if detailMeta.get('cast'):     meta['cast']     = detailMeta['cast']
-    if detailMeta.get('rating'):   meta['rating']   = detailMeta['rating']
-    if detailMeta.get('duration'): meta['duration'] = detailMeta['duration']
-    if detailMeta.get('director'): meta['director'] = detailMeta['director']
-    meta['plot'] = _buildPlot(detailMeta, meta.get('infoTitle', ''))
+    isResolve = meta.get('mediatype', '') == 'movie'
+    log('[%s] showHosters: isResolve=%s (isTvshow=%s)' % (SITE_NAME, isResolve, meta.get('isTvshow', False)), LOGDEBUG)
 
+    
     sThumbnail = meta.get('poster', '')
     if meta.get('isTvshow', False):
         sTitle = '%s S%02dE%02d' % (meta['infoTitle'], int(meta.get('season', 0)), int(meta.get('episode', 0)))
@@ -555,46 +557,44 @@ def getHosters():
         sTitle = meta.get('infoTitle', '')
         meta.setdefault('mediatype', 'movie')
 
-    log('[%s] getHosters: Titel: %s' % (SITE_NAME, sTitle), LOGDEBUG)
+    log('[%s] showHosters: Titel: %s' % (SITE_NAME, sTitle), LOGDEBUG)
     enc_list_pat = r"CryptoJSAesJson\.decrypt\s*\(\s*'(\{(?:[^'\\]|\\.)+\})'\s*,\s*'[^']+'\s*\)"
     isMatch, enc_jsons = cParser.parse(sHtmlContent, enc_list_pat)
 
-    log('[%s] getHosters: CryptoJS-Bloecke: Match=%s Anzahl=%d' % (SITE_NAME, isMatch, len(enc_jsons) if isMatch else 0), LOGDEBUG)
+    log('[%s] showHosters: CryptoJS-Bloecke: Match=%s Anzahl=%d' % (SITE_NAME, isMatch, len(enc_jsons) if isMatch else 0), LOGDEBUG)
     _, logo_names = cParser.parse(sHtmlContent, r"hosterlogos/([A-Za-z0-9_-]+?)(?:HD)?\.png")
-    log('[%s] getHosters: Logos gefunden: %s' % (SITE_NAME, logo_names), LOGDEBUG)
+    log('[%s] showHosters: Logos gefunden: %s' % (SITE_NAME, logo_names), LOGDEBUG)
 
     aResult = []
     if isMatch:
         for i, enc_json in enumerate(enc_jsons):
-            log('[%s] getHosters: Entschluessel Block %d: %s...' % (SITE_NAME, i, enc_json[:50]), LOGDEBUG)
+            log('[%s] showHosters: Entschluessel Block %d: %s...' % (SITE_NAME, i, enc_json[:50]), LOGDEBUG)
             decrypted = _cryptojs_decrypt(str(enc_json), CRYPTO_KEY)
             if decrypted:
                 decrypted = decrypted.strip().strip('"').replace('\\/', '/')
             hname = logo_names[i] if i < len(logo_names) else 'Unknown'
-            if decrypted.startswith('http'):
+            if decrypted and decrypted.startswith('http'):
                 aResult.append((decrypted, hname))
-                log('[%s] getHosters: OK Hoster=%s URL=%s' % (SITE_NAME, hname, decrypted[:60]), LOGDEBUG)
+                log('[%s] showHosters: OK Hoster=%s URL=%s' % (SITE_NAME, hname, decrypted[:60]), LOGDEBUG)
             else:
-                log('[%s] getHosters: Entschluesselung fehlgeschlagen: %s' % (SITE_NAME, hname), LOGDEBUG)
-
+                log('[%s] showHosters: Entschluesselung fehlgeschlagen: %s' % (SITE_NAME, hname), LOGDEBUG)
 
     if not aResult:
-        log('[%s] getHosters: Kein AES-Treffer, versuche Fallback' % SITE_NAME, LOGDEBUG)
+        log('[%s] showHosters: Kein AES-Treffer, versuche Fallback' % SITE_NAME, LOGDEBUG)
         HOSTER_PAT = r'(?:videzz\.net|doodcdn\.(?:com|io|pro)|vinovo\.to|vidoza\.net|streamtape\.(?:com|to)|voe\.sx|mixdrop\.(?:co|to)|dood\.(?:la|re|to|watch))'
         fbPat = r'(?:href|data-url)=["\']?(https?://' + HOSTER_PAT + r'[^"\'>\s]*)["\']?[^>]*>\s*([^<]{2,40})'
         isMatch2, aResult2 = cParser.parse(sHtmlContent, fbPat)
-        log('[%s] getHosters: Fallback Match=%s Treffer=%d' % (SITE_NAME, isMatch2, len(aResult2) if isMatch2 else 0), LOGDEBUG)
+        log('[%s] showHosters: Fallback Match=%s Treffer=%d' % (SITE_NAME, isMatch2, len(aResult2) if isMatch2 else 0), LOGDEBUG)
         if isMatch2:
-            aResult = [(url, lbl.strip()) for url, lbl in aResult2]
+            aResult = [(u, lbl.strip()) for u, lbl in aResult2]
 
     if not aResult:
-        log('[%s] getHosters: Keine Hoster auf %s' % (SITE_NAME, sUrl), LOGDEBUG)
+        log('[%s] showHosters: Keine Hoster auf %s' % (SITE_NAME, sUrl), LOGDEBUG)
         xbmcgui.Dialog().notification('[B]%s[/B]' % SITE_NAME, 'Kein funktionierender Stream vorhanden', SITE_ICON, 5000)
-        url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
-        execute('Container.Update(%s)' % url)
+        setEndOfDirectory()
         return
 
-    log('[%s] getHosters: %d Hoster-Links gefunden' % (SITE_NAME, len(aResult)), LOGDEBUG)
+    log('[%s] showHosters: %d Hoster-Links gefunden' % (SITE_NAME, len(aResult)), LOGDEBUG)
 
     if isProgressDialog: progressDialog.create(SITE_NAME, 'Erstelle Hosterliste ...')
     t = 0
@@ -603,40 +603,70 @@ def getHosters():
         t += 100 / len(aResult)
         hoster = sHosterLabel.strip().rstrip(' HD') or _hosterNameFromUrl(sHosterUrl)
         if isProgressDialog: progressDialog.update(int(t), '[CR]Ueberpruefe ' + hoster.upper())
-        log('[%s] getHosters: Verarbeite Hoster=%s URL=%s' % (SITE_NAME, hoster, sHosterUrl), LOGDEBUG)
+        log('[%s] showHosters: Verarbeite Hoster=%s URL=%s' % (SITE_NAME, hoster, sHosterUrl), LOGDEBUG)
 
         resolvedUrl = sHosterUrl
+        for _dood_alias in ('doodcdn.com', 'dsvplay.com'):
+            if _dood_alias in resolvedUrl:
+                resolvedUrl = resolvedUrl.replace(_dood_alias, 'doodstream.com')
+                log('[%s] showHosters: %s -> doodstream: %s' % (SITE_NAME, _dood_alias, resolvedUrl), LOGDEBUG)
+                break
         if 'vinovo.to' in sHosterUrl:
-            log('[%s] getHosters: Loese Vinovo auf: %s' % (SITE_NAME, sHosterUrl), LOGDEBUG)
+            log('[%s] showHosters: Loese Vinovo auf: %s' % (SITE_NAME, sHosterUrl), LOGDEBUG)
             resolvedUrl = _resolveVinovo(sHosterUrl) or sHosterUrl
-            log('[%s] getHosters: Vinovo aufgeloest: %s' % (SITE_NAME, resolvedUrl), LOGDEBUG)
+            log('[%s] showHosters: Vinovo aufgeloest: %s' % (SITE_NAME, resolvedUrl), LOGDEBUG)
 
         if isResolve:
-            isBlocked, resolvedUrl = isBlockedHoster(resolvedUrl, resolve=isResolve)
+            isBlocked, resolvedUrl = isBlockedHoster(resolvedUrl, resolve=True)
             if not resolvedUrl:
                 resolvedUrl = sHosterUrl
-            log('[%s] getHosters: isBlocked=%s resolvedUrl=%s' % (SITE_NAME, isBlocked, resolvedUrl), LOGDEBUG)
-            #if isBlocked:
-                #log('[%s] getHosters: Blockiert: %s' % (SITE_NAME, hoster), LOGDEBUG)
-                #continue
-        elif isBlockedHoster(hoster)[0]:
-            log('[%s] getHosters: Label blockiert: %s' % (SITE_NAME, hoster), LOGDEBUG)
-            continue
+            log('[%s] showHosters: isBlocked=%s resolvedUrl=%s' % (SITE_NAME, isBlocked, resolvedUrl), LOGDEBUG)
+        else:
+            try:
+                from resources.lib.utils import getHostDict
+                sDomain = resolvedUrl.split('/')[2] if '://' in resolvedUrl else resolvedUrl
+                hostblockDict = getHostDict()
+                isBlocked = any(h in sDomain.lower() or h.split('.')[0] in sDomain.lower() for h in hostblockDict)
+            except Exception as e:
+                log('[%s] showHosters: Blocklist-Check Fehler: %s' % (SITE_NAME, str(e)), LOGDEBUG)
+                isBlocked = False
+            if isBlocked:
+                log('[%s] showHosters: Blockiert: %s' % (SITE_NAME, hoster), LOGDEBUG)
+                continue
 
         slim_meta = {k: meta[k] for k in ('infoTitle', 'title', 'poster', 'isTvshow', 'season', 'episode', 'mediatype', 'year', 'rating') if k in meta}
+        for _k in ('season', 'episode', 'year'):
+            if _k in slim_meta:
+                try: slim_meta[_k] = int(slim_meta[_k])
+                except: slim_meta.pop(_k, None)
+        if 'rating' in slim_meta:
+            try: slim_meta['rating'] = float(slim_meta['rating'])
+            except: slim_meta.pop('rating', None)
         items.append((hoster, sTitle, slim_meta, isResolve, resolvedUrl, sThumbnail))
-        log('[%s] getHosters: Hinzugefuegt: %s' % (SITE_NAME, hoster), LOGDEBUG)
+        log('[%s] showHosters: Hinzugefuegt: %s' % (SITE_NAME, hoster), LOGDEBUG)
 
-    if isProgressDialog: progressDialog.close()
-    log('[%s] getHosters: Gesamt Items: %d' % (SITE_NAME, len(items)), LOGDEBUG)
+    if isProgressDialog: 
+        progressDialog.close()
 
     if len(items) == 0:
-        log('[%s] getHosters: Keine gueltigen Hoster!' % SITE_NAME, LOGDEBUG)
+        log('[%s] showHosters: Keine gueltigen Hoster!' % SITE_NAME, LOGDEBUG)
         xbmcgui.Dialog().notification('[B]%s[/B]' % SITE_NAME, 'Kein funktionierender Stream vorhanden', SITE_ICON, 5000)
+        setEndOfDirectory()
+        return
 
-    url = '%s?action=showHosters&items=%s' % (sys.argv[0], quote(json.dumps(items)))
-    log('[%s] getHosters: Container.Update: %s' % (SITE_NAME, url[:100]), LOGDEBUG)
-    execute('Container.Update(%s)' % url)
+    try:
+        items_json = json.dumps(items)
+    except Exception as e:
+        log('[%s] showHosters: json.dumps Fehler: %s' % (SITE_NAME, str(e)), LOGDEBUG)
+        xbmcgui.Dialog().notification('[B]%s[/B]' % SITE_NAME, 'Fehler beim Aufbau der Hosterliste', SITE_ICON, 5000)
+        setEndOfDirectory()
+        return
+    log('[%s] showHosters: Uebergabe an oNavigator.showHosters (%d Items)' % (SITE_NAME, len(items)), LOGDEBUG)
+    oNavigator.showHosters(items_json)
+
+
+def getHosters():
+    showHosters()
 
 
 def _resolveVinovo(embedUrl):
@@ -680,14 +710,63 @@ def _hosterNameFromUrl(url):
         if name in url: return name.capitalize()
     return 'Unknown'
 
+def _parseSearchResults(sUrl, bGlobal=False):
+    """Parst das kompakte searchy.php-Format und baut die Item-Liste."""
+    log('[%s] _parseSearchResults: %s' % (SITE_NAME, sUrl), LOGDEBUG)
+    oRequest = cRequestHandler(sUrl)
+    oRequest.addHeaderEntry('User-Agent', UA)
+    oRequest.addHeaderEntry('Referer', URL_MAIN + '/')
+    oRequest.cacheTime = 0
+    sHtmlContent = oRequest.request()
+    log('[%s] _parseSearchResults: HTML Laenge: %d' % (SITE_NAME, len(sHtmlContent) if sHtmlContent else 0), LOGDEBUG)
+
+    if not sHtmlContent:
+        log('[%s] _parseSearchResults: Leere Antwort' % SITE_NAME, LOGDEBUG)
+        setEndOfDirectory()
+        return
+
+    isMatch, aResult = cParser.parse(sHtmlContent, r"href='/((?:film|serie)/[^']+)'[^>]*>([^<]+)</a>")
+    log('[%s] _parseSearchResults: Match=%s Treffer=%d' % (SITE_NAME, isMatch, len(aResult) if isMatch else 0), LOGDEBUG)
+
+    if not isMatch or not aResult:
+        log('[%s] _parseSearchResults: Keine Treffer' % SITE_NAME, LOGDEBUG)
+        setEndOfDirectory()
+        return
+
+    items = []
+    for sRelUrl, sLabel in aResult:
+        isTvshow  = sRelUrl.startswith('serie/')
+        sEntryUrl = URL_MAIN + '/' + sRelUrl
+        sName     = sLabel.strip()
+        infoTitle = sName
+        if bGlobal:
+            sName = SITE_NAME + ' - ' + sName
+
+        item = {}
+        item['infoTitle'] = infoTitle
+        item['title']     = sName
+        item['entryUrl']  = sEntryUrl
+        item['isTvshow']  = True
+        item['poster']    = ''
+        item['sFunction'] = 'showSeasons' if isTvshow else 'showHosters'
+        item['mediatype'] = 'tvshow' if isTvshow else 'movie'
+        item['plot']      = '[B][COLOR blue]%s[/COLOR][/B][CR]%s[CR]' % (SITE_NAME, infoTitle)
+        items.append(item)
+        log('[%s] _parseSearchResults: %s -> %s' % (SITE_NAME, sName, sEntryUrl), LOGDEBUG)
+
+    log('[%s] _parseSearchResults: Zeige %d Ergebnisse' % (SITE_NAME, len(items)), LOGDEBUG)
+    xsDirectory(items, SITE_NAME)
+    setEndOfDirectory()
+
+
 def showSearch():
     log('[%s] showSearch called' % SITE_NAME, LOGDEBUG)
     sSearchText = oNavigator.showKeyBoard()
     if not sSearchText: return
     log('[%s] showSearch: Text: %s' % (SITE_NAME, sSearchText), LOGDEBUG)
-    showEntries(URL_SEARCH % quote_plus(sSearchText), sSearchText, bGlobal=False)
+    _parseSearchResults(URL_SEARCH % quote_plus(sSearchText), bGlobal=False)
 
 
 def _search(sSearchText):
     log('[%s] _search: %s' % (SITE_NAME, sSearchText), LOGDEBUG)
-    showEntries(URL_SEARCH % quote_plus(sSearchText), sSearchText, bGlobal=True)
+    _parseSearchResults(URL_SEARCH % quote_plus(sSearchText), bGlobal=True)
