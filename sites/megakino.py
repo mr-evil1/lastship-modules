@@ -59,6 +59,7 @@ def load():
     addDirectoryItem("Serien", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_SERIES), SITE_ICON, 'DefaultTVShows.png')
     addDirectoryItem("Dokumentationen", 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, URL_DOKU), SITE_ICON, 'DefaultMovies.png')
     addDirectoryItem("Genre", 'runPlugin&site=%s&function=showGenre&sUrl=%s' % (SITE_NAME, URL_MAIN), SITE_ICON, 'DefaultGenre.png')
+    addDirectoryItem("Sammlung", 'runPlugin&site=%s&function=showCollection&sUrl=%s' % (SITE_NAME, URL_MAIN), SITE_ICON, 'DefaultGenre.png')
     addDirectoryItem("Suche", 'runPlugin&site=%s&function=showSearch' % SITE_NAME, SITE_ICON, 'DefaultAddonsSearch.png')
     setEndOfDirectory()
 
@@ -76,6 +77,24 @@ def showGenre():
             for sUrl, sName in aResult:
                 if sUrl.startswith('/'): sUrl = URL_MAIN + sUrl
                 addDirectoryItem(sName, 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sUrl), SITE_ICON, 'DefaultGenre.png')
+    setEndOfDirectory()
+
+def showCollection():
+    params = ParameterHandler()
+    entryUrl = params.getValue('sUrl')
+    sHtmlContent = getHtmlContent(entryUrl)
+    if not sHtmlContent: return
+    pattern = r'<div class="side-block__title">Sammlung</div>.*?<div class="side-block__content collection-scroll">(.*?)</div>\s*</div>'
+    isMatch, sContainer = cParser.parseSingleResult(sHtmlContent, pattern)
+    if not isMatch:
+        setEndOfDirectory()
+        return
+    pattern = r'href="([^"]+)"[^>]*>.*?<div class="custom-collection-title">([^<]+)</div>'
+    isMatch, aResult = cParser.parse(sContainer, pattern)
+    if isMatch:
+        for sUrl, sName in aResult:
+            if sUrl.startswith('/'): sUrl = URL_MAIN + sUrl
+            addDirectoryItem(sName.strip(), 'runPlugin&site=%s&function=showEntries&sUrl=%s' % (SITE_NAME, sUrl), SITE_ICON, 'DefaultGenre.png')
     setEndOfDirectory()
 
 def showEntries(entryUrl=None, sSearchText=None, bGlobal=False):
