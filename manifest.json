@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-06-13T07:34:28Z",
+  "last_update": "2026-06-13T08:02:29Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -241,6 +241,13 @@
       "version": "1.0",
       "enabled": true,
       "description": "Filmpro Site Module",
+      "last_modified": "2026-06-13"
+    },
+    {
+      "name": "gezkino",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Gezkino Site Module",
       "last_modified": "2026-06-13"
     },
     {
