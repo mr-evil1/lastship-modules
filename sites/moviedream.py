@@ -19,7 +19,7 @@ except ImportError:
     HAS_CRYPTO = False
     logger.warning('moviedream: PyCryptodome nicht verfuegbar, nutze Pure-Python AES')
     log('[MovieDream] PyCryptodome NICHT verfuegbar, nutze Pure-Python AES Fallback', LOGDEBUG)
-ACTIVE = True
+ACTIVE = False
 oNavigator = navigator()
 addDirectoryItem = oNavigator.addDirectoryItem
 setEndOfDirectory = oNavigator._endDirectory
