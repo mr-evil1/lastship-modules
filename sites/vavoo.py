@@ -227,35 +227,75 @@ def showEpisodes():
 
 
 def getHosters():
-    sUrl       = params.getValue('sUrl')
     sThumbnail = params.getValue('sThumbnail') or params.getValue('poster') or ''
     sTitle     = params.getValue('sTitle') or params.getValue('infoTitle') or ''
     sMeta      = params.getValue('meta') or ''
+    sId        = params.getValue('sId') or ''
 
-    # meta-Fallback
+    meta = {}
     if sMeta:
         try:
             meta = json.loads(sMeta)
         except Exception:
-            meta = {}
-        sUrl       = sUrl or meta.get('sUrl') or meta.get('entryUrl') or ''
+            pass
         sThumbnail = sThumbnail or meta.get('poster') or ''
         sTitle     = sTitle or meta.get('infoTitle') or meta.get('title') or ''
+        sId        = sId or meta.get('sId') or ''
 
-    if not sUrl:
+    tmdb_id   = ''
+    item_type = 'movie'
+    if sId:
+        parts = sId.split('.')
+        if len(parts) >= 2:
+            item_type = parts[0]
+            tmdb_id   = parts[1]
+
+    if not tmdb_id:
+        xbmcgui.Dialog().notification(SITE_NAME, 'Keine ID gefunden', SITE_ICON, 3000)
         oNavigator._endDirectory()
         return
 
-    oRequest = cRequestHandler(sUrl, ignoreErrors=True)
-    oRequest.addHeaderEntry('Referer', URL_MAIN)
-    oRequest.addHeaderEntry('Origin', 'https://' + DOMAIN)
+    import time as _time, gzip as _gzip
+    from urllib.request import urlopen, Request as _Req
 
-    try:
-        aResults = json.loads(oRequest.request())
-    except Exception:
-        aResults = []
+    def _huhu_post(endpoint, payload):
+        ts   = str(int(_time.time() * 1000))
+        url  = 'http://huhu.to/' + endpoint + '?_t=' + ts
+        data = json.dumps(payload).encode('utf-8')
+        req  = _Req(url, data=data)
+        req.add_header('User-Agent', 'MediaUrl/2')
+        req.add_header('Content-Type', 'application/json; charset=utf-8')
+        req.add_header('mediaurl-signature', '')
+        req.add_header('Accept-Encoding', 'gzip')
+        try:
+            resp = urlopen(req, timeout=15)
+            raw  = resp.read()
+            if resp.info().get('Content-Encoding') == 'gzip':
+                raw = _gzip.decompress(raw)
+            return json.loads(raw.decode('utf-8'))
+        except Exception:
+            return None
 
-    if not aResults:
+    item_payload = {
+        'language': 'de', 'region': 'AT', 'clientVersion': '3.1.0',
+        'type': item_type,
+        'ids':  {'tmdb_id': tmdb_id},
+        'name': sTitle,
+        'episode': {},
+    }
+    item_data = _huhu_post('mediaurl-item.json', item_payload)
+
+    if item_data and isinstance(item_data, dict):
+        source_payload = dict(item_data)
+        source_payload['language']      = 'de'
+        source_payload['region']        = 'AT'
+        source_payload['clientVersion'] = '3.1.0'
+    else:
+        source_payload = item_payload
+
+    aResults = _huhu_post('mediaurl-source.json', source_payload)
+
+    if not aResults or not isinstance(aResults, list):
         xbmcgui.Dialog().notification(SITE_NAME, 'Keine Links gefunden', SITE_ICON, 3000)
         oNavigator._endDirectory()
         return
@@ -264,36 +304,27 @@ def getHosters():
 
     hosters = []
     for i in aResults:
-        hUrl    = i.get('url', '')
-        rawName = i.get('name', '')
-        sName   = rawName.split('(')[0].strip()
-        sLang   = i.get('language', '').split('(')[0].strip()
+        if not isinstance(i, dict):
+            continue
+        hUrl     = i.get('url', '')
+        sName    = i.get('name', '')
+        langs    = i.get('languages', [])
+        sLang    = langs[0] if langs else ''
+        sQuality = i.get('tag', '720').replace('p', '')
 
-        # Qualität
-        sQuality = rawName.split('(')[1].replace('p)', '').strip() if '(' in rawName else '720'
-
-        # Hoster-Namen mappen
-        if   'Server 31' in sName: sName = 'Streamtape'
-        elif 'Server 3'  in sName: sName = 'Supervideo'
-        elif 'Server 24' in sName: sName = 'VOE'
-        elif 'Server 6'  in sName: sName = 'Mixdrop'
-
-        # Sprach-Filter
         if sLangPref == '1' and 'en' in sLang: continue
         if sLangPref == '2' and 'de' in sLang: continue
         if sLangPref == '3':                    continue
 
-        # Sprach-Label
         sLangLabel = {'de': '(DE)', 'en': '(EN)'}.get(sLang, '')
 
-        # exakt 6 Werte wie showHosters in navigatorXS erwartet
         hosters.append([
-            '%s [I]%s [%sp][/I]' % (sName, sLangLabel, sQuality),  # sHoster
-            sTitle,                                                   # sTitle
-            sMeta,                                                    # meta
-            False,                                                    # isResolve
-            URL_HOSTER + hUrl,                                        # sUrl
-            sThumbnail,                                               # sThumbnail
+            '%s [I]%s [%sp][/I]' % (sName, sLangLabel, sQuality),
+            sTitle,
+            sMeta,
+            False,
+            hUrl,
+            sThumbnail,
         ])
 
     if hosters:
@@ -306,9 +337,81 @@ def getHosters():
 def getHosterUrl(sUrl=False):
     if not sUrl:
         sUrl = params.getValue('sUrl')
-    oRequest = cRequestHandler(sUrl, ignoreErrors=True)
-    oRequest.request()
-    return [{'streamUrl': oRequest.getRealUrl(), 'resolved': False}]
+
+    import time, json as _json
+    from urllib.request import urlopen, Request as _Req
+    import gzip as _gzip
+
+    def _post_resolve(payload_dict):
+        ts  = str(int(time.time() * 1000))
+        url = 'http://huhu.to/mediaurl-resolve.json?_t=' + ts
+        data = _json.dumps(payload_dict).encode('utf-8')
+        req  = _Req(url, data=data)
+        req.add_header('User-Agent', 'MediaUrl/2')
+        req.add_header('Content-Type', 'application/json; charset=utf-8')
+        req.add_header('mediaurl-signature', '')
+        req.add_header('Accept-Encoding', 'gzip')
+        try:
+            resp = urlopen(req, timeout=15)
+            raw  = resp.read()
+            if resp.info().get('Content-Encoding') == 'gzip':
+                raw = _gzip.decompress(raw)
+            return _json.loads(raw.decode('utf-8'))
+        except Exception:
+            return None
+
+    step1 = _post_resolve({'language': 'de', 'region': 'AT', 'clientVersion': '3.1.0', 'url': sUrl})
+
+    if not step1:
+        return [{'streamUrl': sUrl, 'resolved': False}]
+
+    if isinstance(step1, list) and step1:
+        return [{'streamUrl': step1[0].get('url', sUrl), 'resolved': True}]
+
+    if isinstance(step1, dict) and step1.get('kind') == 'taskRequest':
+        task_id   = step1.get('id', '')
+        task_data = step1.get('data', {})
+        fetch_url = task_data.get('url', '')
+        fetch_params = task_data.get('params', {})
+        fetch_method  = fetch_params.get('method', 'GET')
+        fetch_headers = fetch_params.get('headers', {})
+
+        try:
+            freq = _Req(fetch_url)
+            for k, v in fetch_headers.items():
+                freq.add_header(k, v)
+            freq.add_header('Accept-Encoding', 'gzip')
+            fresp     = urlopen(freq, timeout=15)
+            fraw      = fresp.read()
+            if fresp.info().get('Content-Encoding') == 'gzip':
+                fraw = _gzip.decompress(fraw)
+            fbody    = fraw.decode('utf-8', 'replace')
+            fstatus  = fresp.getcode()
+            fheaders = dict(fresp.info())
+        except Exception as ex:
+            step2 = _post_resolve({
+                'kind': 'taskResponse',
+                'id':   task_id,
+                'data': {'error': str(ex)},
+            })
+            return [{'streamUrl': sUrl, 'resolved': False}]
+
+        step2 = _post_resolve({
+            'kind': 'taskResponse',
+            'id':   task_id,
+            'data': {
+                'status':  fstatus,
+                'headers': fheaders,
+                'body':    fbody,
+            },
+        })
+
+        if isinstance(step2, list) and step2:
+            return [{'streamUrl': step2[0].get('url', sUrl), 'resolved': True}]
+        if isinstance(step2, dict) and step2.get('url'):
+            return [{'streamUrl': step2.get('url'), 'resolved': True}]
+
+    return [{'streamUrl': sUrl, 'resolved': False}]
 
 
 def showSearchMovies():
