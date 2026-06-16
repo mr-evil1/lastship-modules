@@ -405,7 +405,7 @@ class source:
                         'quality':     quality,
                         'language':    'de',
                         'url':         sUrl,
-                        'direct':      True,
+                        'direct':      False,
                         'debridonly':  False,
                         'info':        f'Vavoo_{quality}',
                     })
@@ -425,18 +425,13 @@ class source:
     def resolve(self, url):
         log(f'resolve() url={url[:80]}')
         try:
-            resolved = resolve_stream_url(url)
-            if resolved:
-                log(f'resolve() → {resolved[:80]}')
+            import resolveurl
+            hmf = resolveurl.HostedMediaFile(url=url)
+            if hmf.valid_url():
+                resolved = hmf.resolve()
+                log(f'resolve() ResolveURL → {str(resolved)[:80]}')
                 return resolved
-            log('resolve() via Direktabruf...')
-            resp = requests.get(
-                url,
-                headers={'Referer': f'https://{DOMAIN}/', 'Origin': f'https://{DOMAIN}', 'User-Agent': 'Mozilla/5.0'},
-                timeout=10, verify=False, allow_redirects=True
-            )
-            log(f'resolve() Direktabruf → {resp.url[:80]}')
-            return resp.url
         except Exception as e:
-            log(f'resolve() Exception: {e}', 'ERROR')
-            return None
+            log(f'resolve() ResolveURL Exception: {e}', 'ERROR')
+        log('resolve() kein Ergebnis', 'ERROR')
+        return None
