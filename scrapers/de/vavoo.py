@@ -14,6 +14,30 @@ except ImportError:
 
 from scrapers.modules import source_utils
 
+try:
+    from scrapers.modules.source_utils import getSetting
+except Exception:
+    def getSetting(key, default=''):
+        return default
+
+def _getSetting(key, default='0'):
+    try:
+        import xbmcaddon
+        val = xbmcaddon.Addon().getSetting(key).strip()
+        return val if val else default
+    except Exception:
+        try:
+            return str(getSetting(key, default)).strip() or default
+        except Exception:
+            return default
+
+LANG_FILTER_MAP = {'1': 'de', '2': 'en', '3': 'en', '4': 'ja'}
+
+def _lang_label(sLang):
+    return {1: ' (DE)', 2: ' (EN)', 3: ' (EN/DE-Sub)', 4: ' (JP)'}.get(
+        int(sLang) if str(sLang).isdigit() else -1, ''
+    )
+
 BASE_URL     = 'https://vavoo.to'
 URL_ITEM     = BASE_URL + '/mediahubmx-item.json'
 URL_SOURCE   = BASE_URL + '/mediahubmx-source.json'
@@ -364,8 +388,9 @@ class source:
                 log('Keine Mirrors gefunden, abbruch')
                 return self.sources
 
-            de_count = sum(1 for i in mirrors if isinstance(i, dict) and 'de' in i.get('languages', []))
-            log(f'Davon mit Sprache DE: {de_count}')
+            sLanguage = _getSetting('prefLanguage', '0')
+            lang_filter = LANG_FILTER_MAP.get(sLanguage)
+            log(f'Sprachfilter: prefLanguage={sLanguage} → lang_filter={lang_filter}')
 
             for idx, i in enumerate(mirrors):
                 try:
@@ -374,8 +399,9 @@ class source:
                         continue
 
                     langs = i.get('languages', [])
-                    if 'de' not in langs:
-                        log(f'  [{idx}] {i.get("name")} | Sprache={langs} → übersprungen (kein DE)')
+
+                    if lang_filter and lang_filter not in langs:
+                        log(f'  [{idx}] {i.get("name")} | Sprache={langs} → übersprungen (Filter={lang_filter})')
                         continue
 
                     stream_url = i.get('url')
@@ -398,12 +424,18 @@ class source:
                         continue
 
                     quality = parse_quality(i.get('tag', ''), resolved_url)
-                    log(f'  [{idx}] → HINZUGEFÜGT: {hoster} {quality}')
+
+                    _code_to_num = {'de': 1, 'en': 2, 'ja': 4}
+                    lang_label = _lang_label(_code_to_num.get(langs[0] if langs else '', -1))
+                    hoster_label = f'{hoster}{lang_label}'
+                    log(f'  [{idx}] → HINZUGEFÜGT: {hoster_label} {quality}')
+
+                    src_lang = 'de' if 'de' in langs else langs[0] if langs else 'de'
 
                     self.sources.append({
-                        'source':      hoster,
+                        'source':      hoster_label,
                         'quality':     quality,
-                        'language':    'de',
+                        'language':    src_lang,
                         'url':         sUrl,
                         'direct':      False,
                         'debridonly':  False,
