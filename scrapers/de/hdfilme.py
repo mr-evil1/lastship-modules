@@ -6,7 +6,7 @@ from scrapers.modules import cleantitle, dom_parser, source_utils
 from resources.lib.control import getSetting, quote
 import xbmcgui
 SITE_IDENTIFIER = 'hdfilme'
-SITE_DOMAIN = 'hdfilme.garden'
+SITE_DOMAIN = 'hdfilme1.co'
 SITE_NAME = SITE_IDENTIFIER.upper()
 
 class source:
