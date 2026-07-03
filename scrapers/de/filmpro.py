@@ -6,7 +6,7 @@ from scrapers.modules.tools import cParser
 from resources.lib.control import getSetting, quote_plus
 
 SITE_IDENTIFIER = 'filmpro'
-SITE_DOMAIN = 'www.filmpalast.pro'
+SITE_DOMAIN = 'filmpalast.pro'
 SITE_NAME = SITE_IDENTIFIER.upper()
 
 class source:
