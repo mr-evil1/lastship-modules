@@ -52,7 +52,7 @@ def _init():
     if getSetting('bypassDNSlock') == 'true':
         setSetting('plugin_' + SITE_IDENTIFIER + '.domain', '186.2.175.5')
 
-    DOMAIN = getSetting('plugin_' + SITE_IDENTIFIER + '.domain', 's.to')
+    DOMAIN = getSetting('plugin_' + SITE_IDENTIFIER + '.domain', 'serienstream.to')
     URL_MAIN         = ('http://' if DOMAIN.replace('.', '').isdigit() else 'https://') + DOMAIN
     URL_HOME         = URL_MAIN
     URL_SERIES       = URL_MAIN + '/serien'
