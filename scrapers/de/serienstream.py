@@ -10,7 +10,7 @@ from resources.lib.tools import logger, cParser
 
 
 SITE_IDENTIFIER = 'serienstream'
-SITE_DOMAIN = 's.to'
+SITE_DOMAIN = 'serienstream.to'
 SITE_NAME = 'SerienStream'
 log_utils = True
 
