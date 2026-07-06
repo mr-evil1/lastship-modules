@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "last_update": "2026-07-06T17:04:53Z",
+  "last_update": "2026-07-06T17:05:25Z",
   "description": "Lastship Reborn Remote Modules",
   "scrapers": [
     {
@@ -234,6 +234,13 @@
       "version": "1.0",
       "enabled": true,
       "description": "Fhdfilme Site Module",
+      "last_modified": "2026-07-06"
+    },
+    {
+      "name": "filmpalast.one",
+      "version": "1.0",
+      "enabled": true,
+      "description": "Filmpalast.one Site Module",
       "last_modified": "2026-07-06"
     },
     {
