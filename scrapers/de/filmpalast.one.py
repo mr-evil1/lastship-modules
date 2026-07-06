@@ -13,6 +13,13 @@ except ImportError:
     from HTMLParser import HTMLParser as _hp
     html_unescape = _hp().unescape
 
+try:
+    from resolveurl.plugins.dropload import DropLoadResolver
+    DropLoadResolver.domains = ['dropload.io', 'dropload.tv', 'dropload.co']
+    DropLoadResolver.pattern = r'(?://|\.)(dropload\.(?:io|tv|co))/(?:embed-|e/|d/)?([0-9a-zA-Z]+)'
+except Exception:
+    pass
+
 SITE_IDENTIFIER = 'filmpalast.one'
 SITE_DOMAIN = 'filmpalast.one'
 
@@ -24,7 +31,7 @@ class source:
         self.language = ['de']
         self.domain = getSetting('provider.' + SITE_IDENTIFIER + '.domain', SITE_DOMAIN)
         self.base_link = 'https://' + self.domain
-        self.search_link = '/index.php?do=search&subaction=search&story=%s'
+        self.search_link = '/?story=%s&do=search&subaction=search'
 
     def _request(self, url, referer=None):
         h = cRequestHandler(url, bypass_dns=True)
@@ -34,20 +41,18 @@ class source:
         return h.request()
 
     def _parse_results(self, html):
-        matches = re.findall(
-            r'<a\s+href="(https?://(?:www\.)?filmpalast\.\w+/stream/[^"]+)"[^>]*>\s*'
-            r'(?:<[^>]+>\s*)*<h3[^>]*class="Title"[^>]*>([^<]+)</h3>',
-            html, re.S | re.I
-        )
-        if matches:
-            return matches
         results = []
-        for m_url in re.findall(
-            r'href="(https?://(?:www\.)?filmpalast\.\w+/stream/[^"]+)"', html, re.I
-        ):
-            slug = re.search(r'/stream/\d+-(.+?)(?:-deutsch)?\.html', m_url, re.I)
-            if slug:
-                results.append((m_url, slug.group(1).replace('-', ' ')))
+        for block in re.findall(r'<(?:li|article)[^>]*class="[^"]*TPost[^"]*"[^>]*>(.*?)</(?:li|article)>', html, re.S | re.I):
+            m_url = re.search(r'href="(https?://[^"]*filmpalast\.[^"]+/stream/[^"]+)"', block, re.I)
+            m_title = re.search(r'<h3[^>]*class="[^"]*Title[^"]*"[^>]*>([^<]+)</h3>', block, re.I)
+            if m_url and m_title:
+                results.append((m_url.group(1), html_unescape(m_title.group(1).strip())))
+        if not results:
+            urls = re.findall(r'href="(https?://[^"]*filmpalast\.[^"]+/stream/[^"]+)"', html, re.I)
+            titles = re.findall(r'<h3[^>]*class="[^"]*Title[^"]*"[^>]*>([^<]+)</h3>', html, re.I)
+            for i, m_url in enumerate(urls):
+                title = html_unescape(titles[i].strip()) if i < len(titles) else re.sub(r'/stream/\d+-(.+?)(?:-deutsch)?\.html', lambda m: m.group(1).replace('-', ' '), m_url)
+                results.append((m_url, title))
         return results
 
     def _find_url_by_id(self, imdb):
@@ -57,7 +62,9 @@ class source:
             return None
         results = self._parse_results(data)
         if results:
+            logger.info('[Filmpalast] ID-Suche Treffer: %d' % len(results))
             return results[0][0]
+        logger.info('[Filmpalast] ID-Suche kein Treffer fuer %s' % imdb)
         return None
 
     def _find_url_by_title(self, query, titles, year):
@@ -74,7 +81,9 @@ class source:
             if not page_data:
                 continue
             if year:
-                y = re.search(r'Erscheinungsdatum:\s*</strong>\s*\d{2}-\d{2}-(\d{4})', page_data, re.I)
+                y = re.search(r'(?:Erscheinungsdatum|Jahr)[^:]*:\s*(?:</strong>)?\s*(?:\d{2}[.\-]\d{2}[.\-])?(\d{4})', page_data, re.I)
+                if not y:
+                    y = re.search(r'<span[^>]*class="[^"]*Date[^"]*"[^>]*>[^<]*(\d{4})', page_data, re.I)
                 if y and str(year) not in y.group(1):
                     continue
             return m_url
@@ -118,13 +127,27 @@ class source:
                 continue
             hoster = re.sub(r'^https?://(?:www\.)?([^/]+).*$', r'\1', s_url)
             is_blocked, res_host, res_url, prio = isBlockedHoster(s_url)
-            if is_blocked and prio >= 100:
+            logger.info('[Filmpalast] isBlockedHoster %s -> blocked=%s res_url=%s prio=%s' % (hoster, is_blocked, res_url, prio))
+            if is_blocked and not res_url:
+                continue
+            final_url = s_url
+            can_resolve = False
+            for check_url in ([s_url, res_url] if res_url and res_url != s_url else [s_url]):
+                try:
+                    if resolver.HostedMediaFile(url=check_url):
+                        final_url = check_url
+                        can_resolve = True
+                        break
+                except Exception:
+                    pass
+            if not can_resolve and is_blocked:
+                logger.info('[Filmpalast] kein Resolver + blocked, skip: %s' % hoster)
                 continue
             sources.append({
                 'source': res_host if res_host else hoster,
                 'quality': quality,
                 'language': 'de',
-                'url': res_url if res_url else s_url,
+                'url': final_url,
                 'direct': False,
                 'debridonly': False
             })
@@ -175,13 +198,19 @@ class source:
             if not streams:
                 streams = re.findall(r'<iframe[^>]+src="(https?://[^"]+)"', moviecontent, re.I)
                 logger.info('[Filmpalast] Fallback iframe-Suche: %d gefunden' % len(streams))
+            ddl_scripts = re.findall(r'<script[^>]+src="(https://meinecloud\.click/ddl/[^"]+)"', moviecontent, re.I)
+            mc_ids_done = set()
             for s_url in streams:
                 if not s_url or s_url.startswith('javascript'):
                     continue
-                if 'meinecloud.click' in s_url and imdb:
-                    logger.info('[Filmpalast] meinecloud erkannt, lese /movie/ + /ddl/ fuer %s' % imdb)
-                    mc_sources = self._resolve_meinecloud(imdb, url, quality)
-                    sources.extend(mc_sources)
+                if 'meinecloud.click' in s_url:
+                    mc_match = re.search(r'meinecloud\.click/movie/(tt\d+|\d+)', s_url, re.I)
+                    mc_id = mc_match.group(1) if mc_match else imdb
+                    if mc_id and mc_id not in mc_ids_done:
+                        mc_ids_done.add(mc_id)
+                        logger.info('[Filmpalast] meinecloud ID: %s' % mc_id)
+                        mc_sources = self._resolve_meinecloud(mc_id, url, quality)
+                        sources.extend(mc_sources)
                     continue
                 hoster = re.sub(r'^https?://(?:www\.)?([^/]+).*$', r'\1', s_url)
                 is_blocked, res_host, res_url, prio = isBlockedHoster(s_url)
@@ -195,6 +224,15 @@ class source:
                     'direct': False,
                     'debridonly': False
                 })
+            for ddl_src in ddl_scripts:
+                mc_match = re.search(r'meinecloud\.click/ddl/(tt\d+|\d+)', ddl_src, re.I)
+                if mc_match:
+                    mc_id = mc_match.group(1)
+                    if mc_id not in mc_ids_done:
+                        mc_ids_done.add(mc_id)
+                        logger.info('[Filmpalast] meinecloud DDL-Script ID: %s' % mc_id)
+                        mc_sources = self._resolve_meinecloud(mc_id, url, quality)
+                        sources.extend(mc_sources)
             logger.info('[Filmpalast] %d Quellen gefunden' % len(sources))
             return sources
         except Exception as e:
