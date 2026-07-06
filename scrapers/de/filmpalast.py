@@ -105,7 +105,7 @@ class source:
                 logger.debug('[Filmpalast] Kein Release-Text gefunden, verwende Standard: %s' % quality)
 
             streams = re.findall(
-                r'<li class="hostBg[^"]*">\s*<p class="hostName">([^<]+)</p>\s*</li>\s*<li[^>]*class="streamPlayBtn[^"]*"[^>]*>\s*<!--sse--><a[^>]+(?:href|data-player-url)="(https?://[^"]+)"',
+                r'<p class="hostName">([^<]+)</p>.*?<li[^>]*class="streamPlayBtn[^"]*".*?<a[^>]*(?:href|data-player-url)="([^"]+)"',
                 moviecontent, re.S | re.I
             )
             logger.debug('[Filmpalast] %d Stream-Eintraege gefunden' % len(streams))
@@ -116,7 +116,7 @@ class source:
                     continue
 
                 is_blocked, res_host, res_url, prio = isBlockedHoster(s_url)
-                if is_blocked and prio >= 100:
+                if is_blocked and prio >= 100 and not any(x in s_url for x in ['vidara', 'vidsonic', 'voe']):
                     logger.debug('[Filmpalast] Hoster blockiert: %s (prio=%s)' % (hoster.strip(), prio))
                     continue
 
@@ -139,4 +139,29 @@ class source:
             return sources
 
     def resolve(self, url):
+        if 'vidara' in url:
+            try:
+                import requests
+                filecode = [p for p in url.rstrip('/').split('/') if p][-1]
+                r = requests.post('https://vidara.so/api/stream',
+                                  headers={'User-Agent': UA, 'Content-Type': 'application/json'},
+                                  json={'filecode': filecode, 'device': 'web'}, timeout=10)
+                return r.json().get('streaming_url') or url
+            except Exception as e:
+                logger.error('[Filmpalast] Vidara resolve Fehler: %s' % e)
+                return url
+        if 'vidsonic' in url:
+            try:
+                data = self._request(url, url)
+                if data:
+                    m = re.search(r"const _0x1 = '([^']+)'", data)
+                    if m:
+                        clean = m.group(1).replace('|', '')
+                        out = ''.join(chr(int(clean[i:i+2], 16)) for i in range(0, len(clean), 2))
+                        stream_url = out[::-1]
+                        logger.info('[Filmpalast] VidSonic stream_url: %s' % stream_url)
+                        return stream_url
+            except Exception as e:
+                logger.error('[Filmpalast] VidSonic resolve Fehler: %s' % e)
+            return url
         return url
