@@ -21,7 +21,7 @@ params = ParameterHandler()
 SITE_IDENTIFIER = 'streamcloud'
 SITE_NAME = 'Streamcloud'
 SITE_ICON = 'streamcloud.png'
-DOMAIN = getsSetting('provider.' + SITE_IDENTIFIER + '.domain', 'streamcloud.my')
+DOMAIN = getsSetting('provider.' + SITE_IDENTIFIER + '.domain', 'streamcloud.forum')
 URL_MAIN = 'https://' + DOMAIN 
 
 
